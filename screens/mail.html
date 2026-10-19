@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<meta name="supported-color-schemes" content="light dark">
+<title>Your SOS verification code</title>
+
+<!-- Geist is used where the mail client allows web fonts (Apple Mail); everything else falls back to system fonts -->
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;600&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<style>
+  /* All essential styling is inline below, so the mail still looks right if a client drops this block.
+     This block only adds: the entrance animations, dark mode and small-screen tweaks. */
+  body { margin: 0; padding: 0; }
+
+  @keyframes wipe { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+  @keyframes card { from { opacity: 0; transform: translateY(40px); } to { opacity: 1; transform: none; } }
+  @keyframes rise { from { transform: translateY(115%); } to { transform: translateY(0); } }
+  @keyframes fade { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+  @keyframes pop  { from { opacity: 0; transform: scale(0); } to { opacity: 1; transform: scale(1); } }
+
+  .a-wipe { transform-origin: left; animation: wipe .6s cubic-bezier(.16, 1, .3, 1) .1s both; }
+  .a-card { animation: card .6s cubic-bezier(.16, 1, .3, 1) .15s both; }
+  .a-fade { animation: fade .4s ease-out both; }
+  .a-rise { animation: rise .5s cubic-bezier(.16, 1, .3, 1) both; }
+  .a-pop  { animation: pop .38s cubic-bezier(.34, 1.56, .64, 1) both; }
+  .a-line { transform-origin: left; animation: wipe .8s cubic-bezier(.65, 0, .35, 1) 3.2s both; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .a-wipe, .a-card, .a-fade, .a-rise, .a-pop, .a-line { animation: none !important; }
+  }
+
+  @media (prefers-color-scheme: dark) {
+    body, .bg { background: #17191d !important; }
+    .card  { background: #20232a !important; box-shadow: none !important; }
+    .ink   { color: #ffffff !important; }
+    .muted { color: #9aa3b2 !important; }
+    .blue  { color: #7b8fff !important; }
+    .digit { background: #2b2f39 !important; color: #ffffff !important; }
+    .line  { background: #7b8fff !important; }
+  }
+
+  @media (max-width: 520px) {
+    .pad   { padding: 30px 22px 28px !important; }
+    .h1    { font-size: 40px !important; }
+    .digit { width: 42px !important; height: 56px !important; line-height: 56px !important; font-size: 24px !important; }
+    .dcell { padding-right: 5px !important; }
+  }
+</style>
+</head>
+
+<body style="margin:0;padding:0;background:#edf0f4;">
+
+<!-- inbox preview text -->
+<div style="display:none;max-height:0;overflow:hidden;opacity:0;font-size:1px;line-height:1px;color:#edf0f4;">
+  Your code is {{OTP}}. It expires in {{EXPIRY_MINUTES}} minutes.&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;
+</div>
+
+<table role="presentation" class="bg" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#edf0f4;">
+<tr><td align="center" style="padding:36px 16px;">
+
+  <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:600px;">
+
+    <!-- frame label + timecode (the expiry window) -->
+    <tr><td style="padding:0 8px 14px;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td class="muted" style="font-family:'Geist Mono','SF Mono',SFMono-Regular,ui-monospace,Menlo,Consolas,'Liberation Mono','Courier New',monospace;font-size:13px;line-height:1;color:#68707c;">sos-verify-otp</td>
+          <td class="muted" align="right" style="font-family:'Geist Mono','SF Mono',SFMono-Regular,ui-monospace,Menlo,Consolas,'Liberation Mono','Courier New',monospace;font-size:13px;line-height:1;color:#68707c;">00:00 &mdash; {{EXPIRY_TIMECODE}}</td>
+        </tr>
+      </table>
+    </td></tr>
+
+    <!-- card -->
+    <tr><td>
+      <div class="card a-card" style="background:#ffffff;border-radius:28px;overflow:hidden;box-shadow:0 18px 36px rgba(26,36,51,.09);">
+
+        <!-- blue wipe -->
+        <div class="a-wipe" style="height:8px;line-height:8px;font-size:0;background:#2b4bff;">&nbsp;</div>
+
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr><td class="pad" style="padding:46px 46px 42px;">
+
+          <div class="ink a-fade" style="animation-delay:.5s;font-family:'Geist Mono','SF Mono',SFMono-Regular,ui-monospace,Menlo,Consolas,'Liberation Mono','Courier New',monospace;font-size:20px;line-height:1;letter-spacing:-.04em;color:#000000;">/* Verify email */</div>
+
+          <!-- headline: each word rises out of a mask -->
+          <div class="ink h1" style="margin-top:26px;font-family:'Geist',-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:56px;font-weight:600;line-height:1;letter-spacing:-.06em;color:#000000;">
+            <span style="display:inline-block;overflow:hidden;vertical-align:bottom;padding-bottom:.1em;margin-bottom:-.1em;"><span class="a-rise" style="display:inline-block;animation-delay:.8s;">Here&rsquo;s</span></span>
+            <span style="display:inline-block;overflow:hidden;vertical-align:bottom;padding-bottom:.1em;margin-bottom:-.1em;"><span class="a-rise" style="display:inline-block;animation-delay:.92s;">your</span></span>
+            <span style="display:inline-block;overflow:hidden;vertical-align:bottom;padding-bottom:.1em;margin-bottom:-.1em;"><span class="a-rise" style="display:inline-block;animation-delay:1.04s;">code.</span></span>
+          </div>
+
+          <!-- six digit boxes, popping in one after another -->
+          <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin-top:20px;">
+            <tr>
+              <td class="dcell" style="padding-right:10px;"><span class="digit a-pop" style="display:inline-block;width:64px;height:78px;line-height:78px;text-align:center;background:#f4f6f9;border-radius:12px;font-family:'Geist Mono','SF Mono',SFMono-Regular,ui-monospace,Menlo,Consolas,'Liberation Mono','Courier New',monospace;font-size:34px;font-weight:500;color:#000000;animation-delay:1.8s;">{{D1}}</span></td>
+              <td class="dcell" style="padding-right:10px;"><span class="digit a-pop" style="display:inline-block;width:64px;height:78px;line-height:78px;text-align:center;background:#f4f6f9;border-radius:12px;font-family:'Geist Mono','SF Mono',SFMono-Regular,ui-monospace,Menlo,Consolas,'Liberation Mono','Courier New',monospace;font-size:34px;font-weight:500;color:#000000;animation-delay:1.91s;">{{D2}}</span></td>
+              <td class="dcell" style="padding-right:10px;"><span class="digit a-pop" style="display:inline-block;width:64px;height:78px;line-height:78px;text-align:center;background:#f4f6f9;border-radius:12px;font-family:'Geist Mono','SF Mono',SFMono-Regular,ui-monospace,Menlo,Consolas,'Liberation Mono','Courier New',monospace;font-size:34px;font-weight:500;color:#000000;animation-delay:2.02s;">{{D3}}</span></td>
+              <td class="dcell" style="padding-right:10px;"><span class="digit a-pop" style="display:inline-block;width:64px;height:78px;line-height:78px;text-align:center;background:#f4f6f9;border-radius:12px;font-family:'Geist Mono','SF Mono',SFMono-Regular,ui-monospace,Menlo,Consolas,'Liberation Mono','Courier New',monospace;font-size:34px;font-weight:500;color:#000000;animation-delay:2.13s;">{{D4}}</span></td>
+              <td class="dcell" style="padding-right:10px;"><span class="digit a-pop" style="display:inline-block;width:64px;height:78px;line-height:78px;text-align:center;background:#f4f6f9;border-radius:12px;font-family:'Geist Mono','SF Mono',SFMono-Regular,ui-monospace,Menlo,Consolas,'Liberation Mono','Courier New',monospace;font-size:34px;font-weight:500;color:#000000;animation-delay:2.24s;">{{D5}}</span></td>
+              <td class="dcell" style="padding-right:0;"><span class="digit a-pop" style="display:inline-block;width:64px;height:78px;line-height:78px;text-align:center;background:#f4f6f9;border-radius:12px;font-family:'Geist Mono','SF Mono',SFMono-Regular,ui-monospace,Menlo,Consolas,'Liberation Mono','Courier New',monospace;font-size:34px;font-weight:500;color:#000000;animation-delay:2.35s;">{{D6}}</span></td>
+            </tr>
+          </table>
+
+          <div class="blue a-fade" style="animation-delay:2.9s;margin-top:22px;font-family:'Geist Mono','SF Mono',SFMono-Regular,ui-monospace,Menlo,Consolas,'Liberation Mono','Courier New',monospace;font-size:15px;line-height:1.5;letter-spacing:-.03em;color:#2b4bff;">&#10003; expires in {{EXPIRY_MINUTES}} minutes &middot; keep it private</div>
+
+          <!-- progress strip, same idea as the sign up / sign in strip on the page -->
+          <div class="a-fade" style="animation-delay:3.1s;margin-top:40px;">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+              <tr>
+              </tr>
+            </table>
+          </div>
+          <div class="line a-line" style="margin-top:16px;height:3px;line-height:3px;font-size:0;background:#2b4bff;">&nbsp;</div>
+
+        </td></tr>
+        </table>
+      </div>
+    </td></tr>
+
+    <!-- footer -->
+    <tr><td class="muted" style="padding:22px 8px 0;font-family:'Geist Mono','SF Mono',SFMono-Regular,ui-monospace,Menlo,Consolas,'Liberation Mono','Courier New',monospace;font-size:13px;line-height:1.6;letter-spacing:-.02em;color:#68707c;">
+      // didn&rsquo;t request this? ignore this email. nobody can sign in without the code.
+    </td></tr>
+
+  </table>
+
+</td></tr>
+</table>
+
+</body>
+</html>

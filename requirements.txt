@@ -1,0 +1,7 @@
+flask>=3.0
+werkzeug>=3.0
+groq>=1.0
+python-dotenv>=1.0
+psutil>=5.9
+transformers>=4.40
+torch>=2.2

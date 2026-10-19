@@ -1,0 +1,502 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>GPS (live chat)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/TextPlugin.min.js"></script>
+<style>
+:root{--paper:#edf0f4;--ink:#000;--card:#fff;--blue:#2b4bff;--pink:#ff3d7f;--muted:#68707c;--tint:#f4f6f9;--dot:#c8ced7;--sh:#1a243322;--m:"Geist Mono",Consolas,monospace}
+@media(prefers-color-scheme:dark){:root:not([data-theme=light]){--paper:#14161a;--ink:#f2f4f7;--card:#1e2128;--muted:#9aa3b0;--tint:#272b33;--dot:#2b3039;--sh:#0008}}
+:root[data-theme=dark]{--paper:#14161a;--ink:#f2f4f7;--card:#1e2128;--muted:#9aa3b0;--tint:#272b33;--dot:#2b3039;--sh:#0008}
+*{box-sizing:border-box}
+html,body{height:auto}
+body{margin:0;color:var(--ink);font-family:"Geist",Inter,Arial,sans-serif;background:radial-gradient(var(--dot) 1.5px,transparent 1.5px) 0 0/22px 22px var(--paper);padding-top:env(safe-area-inset-top,0px)}
+button{font:inherit;cursor:pointer}
+.mono{font-family:var(--m);letter-spacing:-.04em}.muted{color:var(--muted)}
+.k{font:20px/1 var(--m);letter-spacing:-.06em;color:var(--blue);margin-bottom:22px}
+.t{font-size:clamp(44px,7.6vw,116px);line-height:.9;font-weight:600;letter-spacing:-.07em;margin:0 0 .4em}
+.m{display:block;overflow:hidden;padding-bottom:.06em}.m>span{display:block}
+.card{background:var(--card);border-radius:30px;box-shadow:0 18px 36px var(--sh);padding:clamp(20px,3vw,34px)}
+.pill{display:inline-block;padding:6px 14px;border-radius:20px;border:2px solid var(--ink);font:14px var(--m);white-space:nowrap}
+.pill.ok{background:var(--blue);border-color:var(--blue);color:#fff}.pill.part{border:2px dashed var(--pink);color:var(--pink)}.pill.bad{background:var(--pink);border-color:var(--pink);color:#fff}
+/* composer */
+#bar{position:fixed;left:50%;top:0;z-index:50;width:min(860px,92vw);display:flex;gap:10px;align-items:center;padding:10px 10px 10px 22px;background:var(--card);border:2px solid var(--ink);border-radius:18px;box-shadow:0 18px 40px var(--sh)}
+#bar:focus-within{border-color:var(--blue)}
+#q{flex:1;min-width:0;border:0;outline:0;background:none;color:var(--ink);font:17px var(--m);letter-spacing:-.04em}
+#go{width:46px;height:46px;border:0;border-radius:12px;background:var(--blue);color:#fff;font:22px var(--m)}
+#go:focus-visible{outline:3px solid var(--pink);outline-offset:2px}
+/* chat */
+#chat{min-height:150vh;max-width:980px;margin:0 auto;display:flex;flex-direction:column;gap:18px;padding:130px 5vw 170px}
+.intro{margin-bottom:auto}
+.msg{max-width:min(620px,84%);padding:16px 22px;border-radius:24px;font:17px/1.4 var(--m);letter-spacing:-.04em}
+.msg.u{align-self:flex-end;background:var(--blue);color:#fff;border-bottom-right-radius:6px}
+.msg.b{align-self:flex-start;background:var(--card);box-shadow:0 18px 36px var(--sh);border-bottom-left-radius:6px;min-width:70px}
+.dots i{display:inline-block;width:8px;height:8px;margin-right:6px;border-radius:50%;background:var(--muted)}
+/* scenes */
+.scene{min-height:100vh;display:grid;place-items:center;padding:120px 5vw 70px}
+.in{position:relative;width:min(1120px,100%)}
+.cmd{font:clamp(24px,3.4vw,42px)/1.1 var(--m);letter-spacing:-.07em}
+.caret{display:inline-block;width:5px;height:1em;margin-left:8px;vertical-align:-.12em;background:var(--blue)}
+.chips{display:flex;flex-wrap:wrap;gap:10px;margin:26px 0}
+.chip{min-width:118px;padding:12px 14px;background:var(--tint);border-radius:10px;font:14px/1.2 var(--m)}.chip b{display:block;font-size:18px;margin-top:5px}
+.cta{width:100%;margin-top:6px;padding:18px;border:0;border-radius:13px;background:var(--blue);color:#fff;font:18px var(--m)}
+.cur{position:absolute;left:0;top:0;opacity:0;z-index:9;pointer-events:none}
+.arrow{width:0;height:0;border-left:12px solid transparent;border-right:12px solid transparent;border-bottom:38px solid var(--ink);transform:rotate(-38deg);filter:drop-shadow(0 2px 0 var(--card))}
+.tag{position:absolute;top:35px;left:19px;padding:6px 9px;border-radius:8px;color:#fff;background:var(--pink);font:13px var(--m)}
+.row3{display:flex;align-items:center;gap:0}
+.mon{flex:1.1;position:relative;overflow:hidden;background:var(--card);border:4px solid var(--ink);border-radius:18px;padding:18px 26px}
+.scan{position:absolute;left:0;right:0;top:0;height:6px;background:var(--blue);box-shadow:0 0 24px var(--blue);z-index:2}
+.req{display:flex;justify-content:space-between;gap:12px;margin:12px 0;font:18px var(--m);letter-spacing:-.05em}.req b{font-weight:500;text-align:right}
+.pk{flex:.5;min-width:70px;height:40px;position:relative}
+.pk i{position:absolute;top:50%;left:0;width:18px;height:18px;margin:-9px 0 0 -9px;border-radius:4px;background:var(--pink);opacity:0}
+.snap{flex:1}.snap h3{margin:0 0 18px;font-size:34px;letter-spacing:-.07em}
+.progress{height:14px;margin:0 0 10px;background:var(--tint);border-radius:9px;overflow:hidden}.progress i{display:block;height:100%;background:var(--blue);transform:scaleX(0);transform-origin:left}
+.sn{display:flex;justify-content:space-between;margin:14px 0;font:17px var(--m)}.sn span:last-child{color:var(--blue)}
+.cmpcard{position:relative;padding:clamp(18px,2.6vw,34px)}
+.legend{display:flex;gap:26px;margin-bottom:10px;font:16px var(--m)}.legend i,.br i{display:inline-block;border-radius:7px}.legend i{width:14px;height:14px;margin-right:8px;vertical-align:-1px}
+.n{background:var(--pink)}.y{background:var(--blue)}
+.cr{position:relative;z-index:1;display:grid;grid-template-columns:150px 1fr 90px;gap:20px;align-items:center;padding:14px 18px}
+.cr>b{font:600 22px var(--m);letter-spacing:-.06em}
+.br{height:24px;display:flex;align-items:center;gap:10px;margin:5px 0;font:13px var(--m)}.br i{display:block;height:100%}
+.sel{position:absolute;left:0;top:0;right:0;z-index:3;border:3px solid var(--blue);opacity:0;pointer-events:none}
+.sel:before,.sel:after{content:"";position:absolute;width:12px;height:12px;background:var(--blue);top:-7px;left:-7px}.sel:after{left:auto;right:-7px}
+.tr{display:grid;grid-template-columns:1.1fr 1fr 1fr 100px;gap:12px;align-items:center;padding:18px 8px;border-top:2px solid var(--tint);font:18px var(--m);letter-spacing:-.05em}
+.th{border:0;color:var(--muted);font-size:15px}
+.verdict{margin-top:22px;padding:clamp(22px,3vw,40px);border-radius:30px;background:var(--blue);color:#fff;transform-origin:bottom}
+.vh{font-size:clamp(54px,9vw,140px);line-height:.9;font-weight:600;letter-spacing:-.08em;overflow:hidden;padding-bottom:.06em}.vh span{display:block}
+.verdict p{margin:14px 0 0;font:18px/1.4 var(--m);max-width:640px}
+@media(max-width:760px){.row3{flex-direction:column;align-items:stretch}.pk{flex:none;width:100%}.cr{grid-template-columns:1fr 70px}.cr .bars{grid-column:1/3;grid-row:2}.tr{grid-template-columns:1fr 1fr 1fr 74px;font-size:13px;gap:6px}.pill{padding:5px 9px;font-size:12px}}
+#chat{opacity:0;max-width:1360px;gap:46px;padding:130px max(6vw,110px) 180px}
+.msg{max-width:min(640px,62%);padding:18px 24px}
+.scene{position:relative;overflow:hidden;padding:120px 5vw 70px max(5vw,120px)}
+#bar{transition:opacity .5s,box-shadow .5s,border-color .5s}
+#bar.docked{opacity:.45;box-shadow:none;border-color:var(--muted)}
+#bar.docked #go{background:var(--muted)}
+#bar.docked:hover,#bar.docked:focus-within{opacity:1;border-color:var(--blue);box-shadow:0 18px 40px var(--sh)}
+#bar.docked:hover #go,#bar.docked:focus-within #go{background:var(--blue)}
+#prog{position:fixed;left:0;top:0;height:3px;width:100%;background:var(--blue);transform:scaleX(0);transform-origin:left;z-index:70}
+#side{position:fixed;left:18px;top:22px;bottom:22px;width:76px;z-index:60;display:flex;flex-direction:column;align-items:center;padding:16px 0;background:var(--card);border-radius:26px;box-shadow:0 18px 36px var(--sh)}
+.logo{font:600 22px var(--m);letter-spacing:-.08em;margin-bottom:16px;color:var(--blue)}
+.nav{position:relative;display:flex;flex-direction:column;gap:6px}
+#ind{position:absolute;left:0;top:0;width:56px;height:62px;border-radius:16px;background:var(--blue)}
+.nb{position:relative;z-index:1;width:56px;height:62px;border:0;border-radius:16px;background:none;color:var(--ink);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;font:10px var(--m);letter-spacing:-.04em;transition:color .3s}
+.nb svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.nb.on{color:#fff}.nb:focus-visible{outline:3px solid var(--pink)}
+#set{position:fixed;left:106px;bottom:22px;width:300px;z-index:61;visibility:hidden;transform-origin:left bottom}
+#set h3{margin:0 0 6px;font-size:30px;letter-spacing:-.07em}
+#set label{display:block;margin:16px 0 8px;font:14px var(--m);color:var(--muted)}
+.seg{display:flex;gap:6px}.seg button{flex:1;padding:10px 0;border:2px solid var(--ink);border-radius:10px;background:none;color:var(--ink);font:14px var(--m)}
+.seg button.on{background:var(--blue);border-color:var(--blue);color:#fff}
+.clr{width:100%;margin-top:20px;padding:12px;border:2px dashed var(--pink);border-radius:12px;background:none;color:var(--pink);font:14px var(--m)}
+.msg{font:500 18px/1.5 "Geist",Inter,Arial,sans-serif;letter-spacing:-.01em;white-space:pre-wrap}
+/* the person's own pointer: same arrow + tag as the GPS demo pointer, blue tag so the two read apart */
+.fake-cursor,.fake-cursor *{cursor:none!important}
+.me{position:fixed;left:0;top:0;z-index:9999;pointer-events:none;visibility:hidden;opacity:0}
+.me .tag{background:var(--blue)}
+.msg.md{white-space:normal;max-width:min(860px,80%);font-size:17px;line-height:1.6}
+.msg.md>*:first-child{margin-top:0}.msg.md>*:last-child{margin-bottom:0}
+.msg.md p{margin:0 0 12px}
+.msg.md h4{margin:22px 0 8px;font:600 19px/1.3 "Geist",Inter,Arial,sans-serif;letter-spacing:-.02em}
+.msg.md ul,.msg.md ol{margin:0 0 12px;padding-left:22px}.msg.md li{margin:4px 0}
+.msg.md code{padding:2px 6px;border-radius:6px;background:var(--tint);font:15px var(--m)}
+.msg.md h4.tt{margin-top:30px;padding-top:18px;border-top:2px solid var(--tint);color:var(--blue);font:500 14px var(--m);letter-spacing:-.02em;text-transform:uppercase}
+.tw{margin:0 0 22px}.tn{margin:0 0 8px;font:600 16px "Geist",Inter,Arial,sans-serif}
+.ts{overflow-x:auto;border:2px solid var(--tint);border-radius:14px}
+.msg.md table{width:100%;border-collapse:collapse;font:14px/1.45 var(--m);letter-spacing:-.03em}
+.msg.md th{padding:10px 14px;text-align:left;background:var(--tint);color:var(--muted);font-weight:500;white-space:nowrap}
+.msg.md td{padding:10px 14px;border-top:1px solid var(--tint);vertical-align:top}
+@media(max-width:760px){.msg.md{max-width:94%}}
+.msg.b:before{content:"GPS";display:block;margin-bottom:6px;font:500 12px var(--m);letter-spacing:-.02em;color:var(--blue)}
+.sub{margin:0 0 30px;max-width:640px;font:19px/1.55 var(--m);letter-spacing:-.04em;color:var(--muted)}
+#cue{align-self:center;display:flex;flex-direction:column;align-items:center;gap:4px;margin:6px 0 70px;font:15px var(--m);color:var(--muted)}
+#cue svg{width:24px;height:24px;fill:none;stroke:var(--blue);stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round}
+.btn:focus-visible{outline:3px solid var(--pink);outline-offset:3px}
+kbd{font:500 13px var(--m);padding:4px 8px;border:2px solid var(--muted);border-radius:7px;color:var(--muted)}
+.verdict{position:relative;overflow:hidden}
+.sheen{position:absolute;top:0;bottom:0;left:0;width:30%;background:linear-gradient(100deg,transparent,#ffffff55,transparent);pointer-events:none}
+.tick{position:absolute;right:clamp(20px,5vw,70px);top:clamp(20px,3vw,40px);width:clamp(70px,10vw,140px);fill:none;stroke:#fff;stroke-width:3.5;stroke-linecap:round;stroke-linejoin:round}
+.acts{display:flex;flex-wrap:wrap;gap:12px;margin-top:26px}
+.btn{padding:14px 22px;border-radius:13px;border:2px solid #fff;background:#fff;color:var(--blue);font:500 17px var(--m)}.btn.o{background:none;color:#fff}
+.scene{padding-right:max(5vw,120px)}
+.pk u{position:absolute;left:0;right:0;top:50%;height:4px;margin-top:-2px;background:repeating-linear-gradient(90deg,var(--blue) 0 12px,transparent 12px 24px)}
+.gap{margin-top:4px;font:500 13px var(--m);letter-spacing:-.03em;color:var(--pink)}
+.gap:before{content:"";display:inline-block;width:22px;height:2px;margin-right:8px;vertical-align:middle;background:var(--pink)}
+.stats{display:flex;gap:clamp(24px,5vw,64px);margin-top:26px}
+.stats b{display:block;font:600 clamp(44px,6vw,84px)/1 "Geist",Inter,Arial,sans-serif;letter-spacing:-.07em}
+.stats span{font:15px var(--m);opacity:.85}
+#rail{position:fixed;right:24px;top:50%;z-index:40;display:flex;flex-direction:column;gap:34px;padding:4px 0 4px 20px}
+#rail u,#rail i{position:absolute;left:0;top:0;bottom:0;width:3px}
+#rail u{background:var(--dot)}#rail i{background:var(--blue);transform:scaleY(0);transform-origin:top}
+#rail button{position:relative;border:0;background:none;padding:0;text-align:left;font:500 14px var(--m);letter-spacing:-.04em;color:var(--muted);transition:color .3s,transform .5s cubic-bezier(.16,1,.3,1)}
+#rail button.on{color:var(--blue);transform:translateX(-6px)}
+#rail button:focus-visible{outline:3px solid var(--pink);outline-offset:3px}
+@media(max-width:1100px){#rail{display:none}.scene{padding-right:5vw}}
+@media(max-width:760px){kbd,.tick{display:none}.sub{font-size:16px}}
+@media(max-width:760px){#side{width:56px;left:8px}.nb,#ind{width:44px}.logo{font-size:17px}.scene{padding-left:72px}#chat{padding:130px 14px 180px 72px}#set{left:72px;width:240px}.msg{max-width:88%}}
+.cr.v{grid-template-columns:200px 1fr;padding:10px 18px}
+.cr.v>b{font-size:16px;overflow-wrap:anywhere}
+.bars.two{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.cr.v .br{height:auto;min-height:24px;align-items:flex-start;margin:3px 0;font-size:14px;overflow-wrap:anywhere}
+.cr.v .br i{width:6px;flex:none;align-self:stretch;height:auto;min-height:20px}
+@media(max-width:760px){.cr.v{grid-template-columns:1fr}.cr.v .bars{grid-column:1;grid-row:2}.bars.two{grid-template-columns:1fr}}
+.verdict .tick{display:none}.verdict.yes .tick.ck,.verdict.no .tick.cx{display:block}
+.verdict.no{background:var(--pink)}.verdict.no .btn:not(.o){color:var(--pink)}
+#tbl .tr{border-radius:10px}
+@media(max-width:760px){.verdict .tick{display:none!important}}
+</style></head>
+<body>
+<div id="prog"></div>
+<aside id="side" aria-label="Sections"><div class="logo">GPS</div>
+<nav class="nav"><i id="ind"></i>
+<button class="nb on" data-go="chat"><svg viewBox="0 0 24 24"><path d="M21 12a8 8 0 0 1-11.6 7.1L3 21l1.9-5.6A8 8 0 1 1 21 12z"/></svg>Messages</button>
+<button class="nb" data-go="s1"><svg viewBox="0 0 24 24"><path d="M4 8V4h4M16 4h4v4M20 16v4h-4M8 20H4v-4M4 12h16"/></svg>Scan</button>
+<button class="nb" id="gear"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M19.1 4.9L17 7M7 17l-2.1 2.1"/></svg>Settings</button></nav></aside>
+<div id="set" class="card" role="dialog" aria-label="Settings"><h3>Settings</h3>
+<label>Theme</label><div class="seg" id="thm"><button data-v="auto" class="on">Auto</button><button data-v="light">Light</button><button data-v="dark">Dark</button></div>
+<label>Animation speed</label><div class="seg" id="spd"><button data-v=".6">Slow</button><button data-v="1" class="on">Normal</button><button data-v="2">Fast</button></div>
+<button class="clr" id="clr">Clear chat</button></div>
+<form id="bar" autocomplete="off"><input id="q" aria-label="Ask GPS" placeholder="Ask GPS anything about the software…"><button id="go" type="submit" aria-label="Send">↑</button></form>
+
+<main id="chat"><div class="intro"><div class="k">GPS · Get PC Specs</div><h1 class="t">Ask anything<br>about GPS.</h1></div></main>
+
+<section class="scene" id="s1"><div class="in">
+<div class="k">Step 1</div>
+<h2 class="t"><span class="m"><span>Let GPS read</span></span><span class="m"><span>your PC.</span></span></h2>
+<div class="card ask"><div class="cmd"><span id="cmdT"></span><i class="caret"></i></div>
+<div class="chips" id="chips"></div>
+<p class="mono muted">The scan runs on your device. Nothing leaves it without your OK.</p>
+<button class="cta" id="take" type="button">Take my system data</button></div>
+<div class="cur"><div class="arrow"></div><span class="tag">GPS</span></div>
+</div></section>
+
+<section class="scene" id="s2"><div class="in">
+<div class="k">Step 2</div>
+<h2 class="t"><span class="m"><span>Reading your</span></span><span class="m"><span>hardware.</span></span></h2>
+<div class="row3"><div class="mon" id="mon"><i class="scan"></i></div><div class="pk" id="pk"></div>
+<div class="card snap"><h3>System snapshot</h3><div class="progress"><i></i></div><div class="mono muted" id="pct" style="margin-bottom:18px">0%</div><div id="sns"></div><span class="pill ok ready" style="margin-top:6px">Snapshot ready</span></div></div>
+</div></section>
+
+<section class="scene" id="s3"><div class="in">
+<div class="k">Step 3</div>
+<h2 class="t"><span class="m"><span>Your software</span></span><span class="m"><span>meets your PC.</span></span></h2>
+<div class="card cmpcard" id="cmp"><div class="legend"><span><i class="n"></i>Software needs</span><span><i class="y"></i>Your PC</span></div><i class="sel"></i></div>
+</div></section>
+
+<section class="scene" id="s4"><div class="in">
+<div class="k">Step 4</div>
+<h2 class="t"><span class="m"><span>Can you run it?</span></span></h2>
+<div class="card" id="tbl" style="padding-top:14px"><div class="tr th"><span>Component</span><span>Needs</span><span>Your PC</span><span>Result</span></div></div>
+<div class="verdict yes" id="vd" style="display:none"><i class="sheen"></i><svg class="tick ck" viewBox="0 0 28 28" aria-hidden="true"><path d="M4 14l7 7L24 6" stroke-dasharray="40"/></svg><svg class="tick cx" viewBox="0 0 28 28" aria-hidden="true"><path d="M6 6l16 16" stroke-dasharray="23"/><path d="M22 6L6 22" stroke-dasharray="23"/></svg><div class="vh"><span id="vh"></span></div><p id="vp"></p><div class="stats"><div><b data-n="0">0</b><span>pass</span></div><div><b data-n="0">0</b><span>partial</span></div><div><b data-n="0">0</b><span>fail</span></div></div><div class="acts"><button class="btn" id="again" type="button">Replay the demo</button><button class="btn o" id="ask" type="button">Ask GPS a question</button></div></div>
+</div></section>
+
+<script>
+gsap.registerPlugin(TextPlugin);
+const $=(s,r=document)=>r.querySelector(s),$$=(s,r=document)=>[...r.querySelectorAll(s)];
+const RM=matchMedia('(prefers-reduced-motion:reduce)').matches;
+const CHIPS=['CPU','GPU','RAM','Disk','OS'];
+const PILL={pass:'Pass',partial:'Partial',fail:'Fail'},PCLS={pass:'ok',partial:'part',fail:'bad'};
+const vpill=(v,t)=>`<span class="pill ${PCLS[v]}" title="${esc(t||'')}">${PILL[v]}</span>`;
+let VT=0,CMPROWS=[];   /* VT: id of the newest verdict request (older answers are ignored). CMPROWS: the rows shown in Step 3 */
+
+/* ---------- build scene markup ---------- */
+$('#chips').innerHTML=CHIPS.map(l=>`<div class="chip">${l}<b>?</b></div>`).join('');
+
+/* ---------- friendly copy, hints, shortcuts ---------- */
+['GPS checks your processor, graphics card, memory, storage and Windows version. It takes about five seconds.','Each part is read once and packed into a short snapshot. Nothing else on your PC is touched.','We line up what your software asks for against what your PC has.','Here is the plain answer, with every part spelled out.'].forEach((t,i)=>$$('.scene h2.t')[i].insertAdjacentHTML('afterend','<p class="sub">'+t+'</p>'));
+$('.intro h1').insertAdjacentHTML('afterend','<p class="sub">GPS checks whether your PC can run a program before you download it.</p>');
+$('#pct').insertAdjacentHTML('afterend','<div class="mono" id="stat" style="color:var(--blue);margin-bottom:14px">Waiting to start</div>');
+$('.legend').insertAdjacentHTML('beforeend','<b class="mono" id="sum" style="margin-left:auto;color:var(--blue)"></b>');
+$('#go').insertAdjacentHTML('beforebegin','<kbd title="Press / to search">/</kbd>');
+const cue=document.createElement('div');cue.id='cue';cue.setAttribute('aria-hidden','true');cue.innerHTML='Scroll to watch GPS check a PC<svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>';
+$('#chat').append(cue);$('#chat').setAttribute('aria-live','polite');
+addEventListener('keydown',e=>{if(e.key=='/'&&!/INPUT|TEXTAREA/.test(document.activeElement.tagName)){e.preventDefault();inp.focus()}});
+
+/* ---------- chat ---------- */
+const chat=$('#chat'),bar=$('#bar'),inp=$('#q');
+const bottomY=()=>Math.max(0,chat.offsetHeight-innerHeight);
+function say(cls,txt,anim){const d=document.createElement('div');d.className='msg '+cls;d.textContent=txt;cue.before(d);if(anim)gsap.from(d,{x:cls=='u'?70:-70,autoAlpha:0,duration:.55,ease:'expo.out'});return d}
+async function reply(text){const d=say('b','',1);d.innerHTML='<span class="dots"><i></i><i></i><i></i></span>';const dots=$$('i',d);
+ gsap.to(dots,{y:-6,repeat:-1,yoyo:true,stagger:.12,duration:.3,ease:'sine.inOut'});
+ let out;
+ try{const r=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:text})});
+  const j=await r.json().catch(()=>({}));out=r.ok?(j.reply||'(empty reply)'):'Error: '+(j.error||r.status);if(r.ok&&j.software!==undefined)setSoftware(j.software)}
+ catch(err){out='Could not reach the server. Run groq_bot.py and open http://127.0.0.1:5000 in the browser.'}
+ gsap.killTweensOf(dots);d.textContent='';d.classList.add('md');
+ d.innerHTML=md(out);
+ const kids=[...d.children];
+ gsap.from(kids,{autoAlpha:0,y:12,duration:.45,ease:'power2.out',stagger:Math.min(.12,1.6/Math.max(kids.length,1))});
+ /* show the reply from its first line: scroll to its top, never past the end of the chat (a short reply just ends at the bottom) */
+ scrollTo({top:Math.max(0,Math.min(d.getBoundingClientRect().top+scrollY-28,bottomY())),behavior:'smooth'})}
+
+/* ---------- markdown -> HTML. All text first, every table gathered at the end ---------- */
+const inl=s=>esc(s).replace(/`([^`]+)`/g,'<code>$1</code>').replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>').replace(/(^|[^*])\*([^*\s][^*]*?)\*(?!\*)/g,'$1<em>$2</em>');
+const cells=l=>l.trim().replace(/^\|/,'').replace(/\|$/,'').split('|').map(c=>c.trim());
+function md(src){
+ const L=String(src).replace(/\r/g,'').split('\n'),prose=[],tables=[];
+ let i=0,para=[];
+ const flush=()=>{if(para.length){prose.push({t:'p',h:'<p>'+inl(para.join(' '))+'</p>',len:para.join(' ').length});para=[]}};
+ while(i<L.length){
+  const ln=L[i],tr=ln.trim();
+  if(!tr){flush();i++;continue}
+  if(/^-{3,}$/.test(tr)){flush();i++;continue}
+  if(tr[0]=='|'&&i+1<L.length&&/^\s*\|?\s*:?-{2,}:?\s*(\|\s*:?-{2,}:?\s*)*\|?\s*$/.test(L[i+1])){
+   flush();const head=cells(tr);i+=2;const rows=[];
+   while(i<L.length&&L[i].trim()[0]=='|'){rows.push(cells(L[i]));i++}
+   let title='';const p=prose[prose.length-1];
+   if(p&&(p.t=='h'||(p.t=='p'&&p.len<80))){title=p.txt||p.h.replace(/<[^>]+>/g,'');prose.pop()}
+   tables.push('<div class="tw">'+(title?'<h5 class="tn">'+esc(title)+'</h5>':'')+'<div class="ts"><table><thead><tr>'+head.map(c=>'<th>'+inl(c)+'</th>').join('')+'</tr></thead><tbody>'+rows.map(r=>'<tr>'+head.map((_,k)=>'<td>'+inl(r[k]||'')+'</td>').join('')+'</tr>').join('')+'</tbody></table></div></div>');
+   continue}
+  let m=tr.match(/^(#{1,6})\s+(.*)$/);
+  if(m){flush();i++;const txt=m[2].replace(/\*\*/g,'').trim();
+   if(/^tables?:?$/i.test(txt))continue;
+   prose.push({t:'h',txt,h:'<h4>'+inl(m[2])+'</h4>'});continue}
+  if(/^([-*•])\s+/.test(tr)||/^\d+[.)]\s+/.test(tr)){
+   flush();const ol=/^\d+[.)]\s+/.test(tr),items=[];
+   while(i<L.length&&(ol?/^\s*\d+[.)]\s+/:/^\s*([-*•])\s+/).test(L[i])){items.push(L[i].trim().replace(ol?/^\d+[.)]\s+/:/^([-*•])\s+/,''));i++}
+   prose.push({t:'l',h:(ol?'<ol>':'<ul>')+items.map(x=>'<li>'+inl(x)+'</li>').join('')+(ol?'</ol>':'</ul>')});continue}
+  para.push(tr);i++}
+ flush();
+ return prose.map(b=>b.h).join('')+(tables.length?'<h4 class="tt">Tables</h4>'+tables.join(''):'')}
+$('#bar').addEventListener('submit',e=>{e.preventDefault();const v=inp.value.trim();if(!v)return;inp.value='';
+ const far=docked;say('u',v,!far);scrollTo({top:bottomY(),behavior:'smooth'});setTimeout(()=>reply(v),far?900:350)});
+
+/* ---------- composer: bottom while chatting, top once the chat ends ---------- */
+let docked=false;
+const slot=()=>docked?22:innerHeight-bar.offsetHeight-26;
+gsap.set(bar,{xPercent:-50,transformOrigin:'50% 0'});
+const place=a=>gsap.to(bar,{y:slot(),scale:docked?.92:1,duration:a?.85:0,ease:'expo.inOut',overwrite:true});
+const ind=$('#ind'),nbs=$$('.nb[data-go]'),mark=i=>{nbs.forEach((b,j)=>b.classList.toggle('on',i===j));gsap.to(ind,{y:nbs[i].offsetTop,duration:.5,ease:'expo.out'})};
+let at=0;
+function check(){const d=scrollY>bottomY()+80,n=d?1:0;if(n!==at){at=n;mark(n)}
+ if(d===docked)return;docked=d;bar.classList.toggle('docked',d);if(d)inp.blur();place(1);
+ inp.placeholder=d?'Ask GPS anything. Enter jumps back to the chat.':'Ask GPS anything about the software…'}
+addEventListener('scroll',check,{passive:true});addEventListener('resize',()=>place(0));
+
+/* ---------- real system data (Step 1 chips + Step 2 rows) ---------- */
+const esc=t=>String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+let DATA=null,busy=0,fillTL=null;
+const chipEls=()=>$$('#chips .chip b');
+function resetChips(){chipEls().forEach(b=>b.textContent='?')}
+function restoreBtn(){const b=$('#take');b.textContent='Take my system data';b.style.background=''}
+$('#take').insertAdjacentHTML('afterend','<p class="mono" id="scanErr" style="display:none;margin:14px 0 0;color:var(--pink)"></p>');
+function showErr(m,ok){const e=$('#scanErr');e.textContent=m||'';e.style.color=ok?'var(--blue)':'var(--pink)';e.style.display=m?'block':'none'}
+function fillChips(chips,done){fillTL&&fillTL.kill();fillTL=gsap.timeline({onComplete:done});
+ chipEls().forEach((b,i)=>{const c=chips.find(x=>x.label===CHIPS[i]);fillTL.to(b,{text:c?c.value:'N/A',duration:.35,ease:'none'},'>-.05')})}
+async function takeData(){
+ if(busy)return;busy=1;showErr('');
+ resetChips();{const b=$('#take');b.textContent='Reading your PC…';b.style.background='#ff3d7f'}
+ try{
+  const r=await fetch('/api/collect_spec',{method:'POST'});
+  const j=await r.json().catch(()=>({}));
+  if(!r.ok)throw new Error(j.error||'HTTP '+r.status);
+  DATA=j;busy=0;
+  await new Promise(r=>setTimeout(r,700));
+  buildCapture(DATA.details);buildCompare(DATA);startVerdict();
+  if(j.software&&j.software.message)showErr(j.software.message,j.software.ok);
+  fillChips(DATA.chips,()=>{restoreBtn();setTimeout(()=>scrollTo({top:$('#s2').offsetTop,behavior:'smooth'}),700)});
+ }catch(err){
+  busy=0;setTimeout(restoreBtn,500);
+  showErr(err instanceof TypeError?'Could not reach the server. Run groq_bot.py and open http://127.0.0.1:5000 in the browser.':'Could not read your PC: '+err.message)}}
+$('#take').onclick=()=>takeData();
+
+/* last chatted software -> Step 3 heading (dynamic) */
+let SW=null,CMPFOR=null;
+function setSoftware(name){SW=name||null;const n=SW||'Your software';
+ $('#s3 h2.t .m:first-child span').textContent=n;
+ $('#s3 .sub').textContent='We line up what '+(SW||'your software')+' asks for against what your PC has.';
+ if(CMPFOR&&SW!==CMPFOR){CMPFOR=null;buildCompare(null)}}   /* rows belong to another software: clear them */
+setSoftware(null);fetch('/api/reset',{method:'POST'}).catch(()=>{});   /* a page reload starts clean: the server forgets the old software and chat too */
+
+/* Step 3: software values and PC values side by side (no comparison, that comes later) */
+function buildCompare(d){
+ const prev=S.s3;if(prev){prev.tl.revert();prev.tl.kill()}
+ gsap.set(['#s3 .m>span','#s3 .sub','#cmp','#cmp .sel'],{clearProps:'all'});   /* a timeline that never played cannot revert itself */
+ $$('#cmp .cr,#cmpHint').forEach(e=>e.remove());$('#sum').textContent='';
+ const sw=d&&d.software,ok=!!(sw&&sw.ok);let rows=[];CMPFOR=ok?sw.name:null;
+ if(ok){const P=new Map([...d.chips,...d.details.filter(x=>!HIDE.test(String(x.label).trim()))].map(x=>[x.label,x.value])),
+   W=new Map([...sw.chips,...sw.details].map(x=>[x.label,x.value]));
+  const na=v=>/^n\/?a\.?$/i.test(String(v==null?'':v).trim());   /* a row with an N/A on either side is not shown */
+  rows=[...new Set([...P.keys(),...W.keys()])].map(l=>[l,W.has(l)?W.get(l):'—',P.has(l)?P.get(l):'—']).filter(r=>!na(r[1])&&!na(r[2]))}
+ $('#cmp').insertAdjacentHTML('beforeend',rows.length?rows.map(r=>`<div class="cr v"><b>${esc(r[0])}</b><div class="bars two"><div class="br"><i class="n"></i>${esc(r[1]||'—')}</div><div class="br"><i class="y"></i>${esc(r[2]||'—')}</div></div></div>`).join('')
+  :`<p class="mono ${sw&&!ok&&sw.message?'':'muted'}" id="cmpHint" style="margin:34px 0${sw&&!ok&&sw.message?';color:var(--pink)':''}">${esc(sw&&!ok&&sw.message?sw.message:ok?'No specs found for '+sw.name+'.':'Nothing read yet. Press “Take my system data” in Step 1.')}</p>`);
+ CMPROWS=rows.map(r=>({label:r[0],needs:r[1],has:r[2]}));VT++;   /* new rows: any verdict still in flight is stale */
+ if(!rows.length)buildVerdict({phase:'idle',msg:d?'No comparable rows in Step 3, so there is nothing to judge.':''});
+ const cr=$$('#cmp .cr'),N=cr.length,C=gsap.timeline({paused:true}),st=Math.min(1.05,5/Math.max(N,1));
+ rv('#s3',C).from('#cmp',{y:50,autoAlpha:0,duration:.7,ease:'expo.out'},.3);
+ cr.forEach((r,i)=>{const t=1+i*st;
+  C.to('.sel',{autoAlpha:1,y:()=>r.offsetTop,height:()=>r.offsetHeight,duration:st*.45,ease:'power3.inOut'},t)
+   .from($$('.br i',r),{scaleX:0,transformOrigin:'left',duration:st*.6,stagger:st*.14,ease:'expo.out'},t+st*.2)});
+ if(N)C.to('.sel',{autoAlpha:0,duration:.3}).to('#sum',{text:'Prompt Guard passed · '+N+' values',duration:.7,ease:'none'});
+ S.s3={tl:C,on:prev&&prev.on};if(prev&&prev.on)C.restart()}
+
+/* Step 2: same animation as before, one row per real data line */
+const HIDE=/^(GPU \d+ (AdapterRAM|DriverVersion)|\.NET Framework)/i;   /* never shown */
+function buildCapture(items){
+ items=items.filter(s=>!HIDE.test(String(s.label).trim()));
+ const prev=S.s2;if(prev){prev.tl.revert();prev.tl.kill()}
+ /* revert() cannot undo a timeline that never played, so the new one would record the hidden "from" state as its end state */
+ gsap.set(['#s2 .m>span','#s2 .sub','#s2 .mon','#s2 .snap','#s2 .scan','#s2 .ready','#s2 .progress i'],{clearProps:'all'});
+ $('#stat').textContent='Waiting to start';$('#pct').textContent='0%';
+ const N=items.length;
+ $$('#mon .req,#monHint').forEach(e=>e.remove());
+ if(!N)$('#mon').insertAdjacentHTML('beforeend','<p class="mono muted" id="monHint" style="margin:34px 0">Nothing read yet. Press “Take my system data” in Step 1.</p>');
+ $('#mon').insertAdjacentHTML('beforeend',items.map(s=>`<div class="req"><span>${esc(s.label)}</span><b></b></div>`).join(''));
+ $('#pk').innerHTML='<u></u>'+items.map(()=>'<i></i>').join('');
+ $('#sns').innerHTML=items.map(s=>`<div class="sn"><span>${esc(s.label)}</span><span>✓</span></div>`).join('');
+ const rows=$$('#mon .req'),pk=$$('#pk i'),sn=$$('#sns .sn'),B=gsap.timeline({paused:true}),st=Math.min(.6,3/Math.max(N,1));
+ rows.forEach((r,i)=>{$('b',r).textContent=items[i].value||'—'});
+ gsap.set('#s2 .ready',{autoAlpha:0});
+ rv('#s2',B).from('#s2 .mon,#s2 .snap',{y:60,autoAlpha:0,stagger:.12,duration:.7,ease:'expo.out'},.3);
+ if(N)B.fromTo('#s2 .scan',{y:0,autoAlpha:1},{y:()=>$('#mon').offsetHeight-14,duration:3,ease:'none'},1.1);else gsap.set('#s2 .scan',{autoAlpha:0});
+ rows.forEach(r=>{$('b',r).textContent=''});
+ items.forEach((s,i)=>{const t=1.3+i*st;
+  B.add(dec($('b',rows[i]),s.value||'—',.55),t).to(rows[i],{color:'#2b4bff',duration:.2},t).to('#stat',{text:'Reading '+s.label+'…',duration:.25,ease:'none'},t)
+   .fromTo(pk[i],{left:'0%',autoAlpha:1},{left:'100%',duration:.5,ease:'power2.in'},t+.15).to(pk[i],{autoAlpha:0,duration:.1},t+.65)
+   .from(sn[i],{x:30,autoAlpha:0,duration:.35,ease:'expo.out'},t+.6)
+   .to('#s2 .progress i',{scaleX:(i+1)/N,duration:.4},t+.6).to('#pct',{text:Math.round((i+1)*100/N)+'%',duration:.3,ease:'none'},t+.6)});
+ B.from('#pk u',{scaleX:0,transformOrigin:'left',duration:.6,ease:'expo.out'},.5).fromTo('#pk u',{backgroundPositionX:'0px'},{backgroundPositionX:'144px',duration:4.4,ease:'none'},.8);
+ if(N)B.to('#s2 .scan',{autoAlpha:0,duration:.2},4.2).to('#stat',{text:'Done. '+N+' of '+N+' read.',duration:.4,ease:'none'},4.3).to('#s2 .ready',{autoAlpha:1,duration:.01},4.3).from('#s2 .ready',{scale:0,duration:.4,ease:'back.out(3)'},4.3);
+ S.s2={tl:B,on:prev&&prev.on};
+ if(prev&&prev.on)B.restart()}
+
+/* ---------- Step 4: spec-checker verdict (pass / partial / fail per row, then yes or no) ---------- */
+async function startVerdict(){
+ const my=++VT;
+ if(!CMPROWS.length)return;
+ buildVerdict({phase:'wait'});
+ try{
+  const r=await fetch('/api/verdict',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({software:CMPFOR,rows:CMPROWS})});
+  const j=await r.json().catch(()=>({}));
+  if(my!==VT)return;
+  if(!r.ok)throw new Error(j.error||'HTTP '+r.status);
+  buildVerdict({phase:'done',data:j})
+ }catch(err){
+  if(my!==VT)return;
+  buildVerdict({phase:'err',msg:err instanceof TypeError?'Could not reach the server. Run groq_bot.py and open http://127.0.0.1:5000 in the browser.':'Could not judge: '+err.message})}}
+const names=a=>{a=[...new Set(a)];return a.slice(0,4).join(', ')+(a.length>4?' +'+(a.length-4)+' more':'')};
+function verdictText(d){const sw=d.software||'This software',c=d.counts,head=c.pass+' pass, '+c.partial+' partial, '+c.fail+' fail. ';
+ if(!d.run)return head+(d.blockers.length?sw+' is blocked by: '+names(d.blockers)+'.':'The checker judged that '+sw+' will not run well on this PC.');
+ return head+(d.weak.length?'It should run, but only partly meets what '+sw+' asks for in: '+names(d.weak)+'.':'Every check that matters passed.')}
+function buildVerdict(st){
+ st=st||{phase:'idle'};
+ const prev=S.s4;if(prev){prev.tl.revert();prev.tl.kill()}
+ gsap.set(['#s4 .m>span','#s4 .sub','#tbl','#vd','#vh','#vp','#vd .sheen','#vd .stats>div','#vd .acts .btn','#vd .tick path'],{clearProps:'all'});   /* a timeline that never played cannot revert itself */
+ $$('#tbl .tr:not(.th),#tblHint').forEach(e=>e.remove());
+ const vd=$('#vd'),done=st.phase=='done',D=gsap.timeline({paused:true});
+ vd.style.display=done?'':'none';
+ if(!done){
+  const err=st.phase=='err',msg=st.phase=='wait'?'spec-checker is judging every row…':st.msg||'Nothing to judge yet. Press “Take my system data” in Step 1.';
+  $('#tbl').insertAdjacentHTML('beforeend',`<p class="mono ${err?'':'muted'}" id="tblHint" style="margin:30px 8px${err?';color:var(--pink)':''}">${esc(msg)}</p>`);
+  rv('#s4',D).from('#tbl',{y:50,autoAlpha:0,duration:.7,ease:'expo.out'},.3);
+  S.s4={tl:D,on:prev&&prev.on};if(prev&&prev.on)D.restart();return}
+ const d=st.data,R=d.results,run=!!d.run,c=d.counts;
+ $('#tbl').insertAdjacentHTML('beforeend',R.map(r=>`<div class="tr"><b>${esc(r.label)}</b><span>${esc(r.needs)}</span><span>${esc(r.has)}</span>${vpill(r.verdict,r.calc+' · '+(r.src=='rule'?'exact check':'model'))}</div>`).join(''));
+ vd.className='verdict '+(run?'yes':'no');
+ $('#vh').textContent=run?'Yes. It runs.':"No. It won't run.";
+ $('#vp').textContent=verdictText(d);
+ $$('#vd .stats b').forEach((b,i)=>{const n=[c.pass,c.partial,c.fail][i];b.dataset.n=n;b.textContent=n});
+ const rowEls=$$('#tbl .tr:not(.th)'),stg=Math.min(.35,4/Math.max(rowEls.length,1)),bad=rowEls.filter((_,i)=>R[i].verdict=='fail');
+ rv('#s4',D).from('#tbl',{y:50,autoAlpha:0,duration:.7,ease:'expo.out'},.3)
+  .from(rowEls,{clipPath:'inset(0 100% 0 0)',stagger:stg,duration:.5,ease:'power3.out'})
+  .from($$('#tbl .tr:not(.th) .pill'),{scale:0,stagger:stg,duration:.35,ease:'back.out(3)'},'<.3');
+ if(!run&&bad.length)D.to(bad,{backgroundColor:'rgba(255,61,127,.14)',stagger:.12,duration:.3},'>');   /* failed rows light up */
+ D.from('#vd',{scaleY:0,duration:.6,ease:'expo.out'},'+=.2').from('#vh',{yPercent:110,duration:.7,ease:'expo.out'},'<.25')
+  .from('#vp',{autoAlpha:0,y:20,duration:.5},'-=.2');
+ if(run)D.from('#vd .tick.ck path',{strokeDashoffset:40,duration:.7,ease:'power2.out'},'<');   /* success: tick draws, sheen sweeps */
+ else D.from('#vd .tick.cx path',{strokeDashoffset:23,duration:.35,stagger:.25,ease:'power2.out'},'<')   /* failure: cross draws, panel shakes, red ring pulses */
+  .to('#vd',{keyframes:{x:[-16,14,-10,7,-3,0],easeEach:'sine.inOut'},duration:.55},'>-.05')
+  .fromTo('#vd',{boxShadow:'0 0 0 0 rgba(255,61,127,.55)'},{boxShadow:'0 0 0 36px rgba(255,61,127,0)',duration:.8,ease:'power2.out'},'<');
+ D.from('#vd .stats>div',{autoAlpha:0,y:30,stagger:.12,duration:.6,ease:'expo.out'},'-=.2')
+  .fromTo('#vd .stats b',{textContent:0},{textContent:(i,t)=>+t.dataset.n,duration:1.1,snap:{textContent:1},ease:'power2.out'},'<')
+  .from('#vd .acts .btn',{autoAlpha:0,y:16,stagger:.1,duration:.5,ease:'expo.out'},'-=.3');
+ if(run)D.fromTo('#vd .sheen',{xPercent:-120},{xPercent:420,duration:1.1,ease:'power2.inOut'},'<.2');
+ S.s4={tl:D,on:prev&&prev.on};if(prev&&prev.on)D.restart()}
+
+/* ---------- scene timelines ---------- */
+const rv=(id,tl)=>tl.from(id+' .m>span',{yPercent:110,stagger:.12,duration:.8,ease:'expo.out'}).from(id+' .sub',{autoAlpha:0,y:18,duration:.7,ease:'expo.out'},.45);
+const aim=el=>{const p=el.closest('.in').getBoundingClientRect(),r=el.getBoundingClientRect();return{x:r.left-p.left+r.width*.55,y:r.top-p.top+r.height*.4}};
+const GL='01ABCDEF#$%<>/',dec=(el,txt,d)=>{const o={p:0};return gsap.to(o,{p:1,duration:d,ease:'none',onUpdate:()=>{const n=Math.round(o.p*txt.length);el.textContent=o.p<=0?'':txt.slice(0,n)+[...txt.slice(n)].map(c=>c==' '?' ':GL[Math.random()*GL.length|0]).join('')}})};
+const S={};
+function build(){
+ /* 1. ask */
+ let A=gsap.timeline({paused:true});rv('#s1',A)
+  .from('#s1 .ask',{y:60,autoAlpha:0,duration:.7,ease:'expo.out'},.3)
+  .to('#cmdT',{text:'gps scan --local',duration:1.2,ease:'none'})
+  .from('#s1 .chip',{scale:.7,autoAlpha:0,stagger:.08,duration:.4,ease:'back.out(2)'})
+  .add(()=>{const a=aim($('#take'));gsap.fromTo('#s1 .cur',{x:a.x+280,y:a.y+220,autoAlpha:1},{x:a.x,y:a.y,duration:1.1,ease:'power3.inOut'})},'+=.2')
+  .to('#take',{scale:.95,duration:.1,yoyo:true,repeat:1},'+=1.3')
+  .to('#take',{boxShadow:'0 0 0 10px rgba(43,75,255,.28)',duration:.25,yoyo:true,repeat:1},'<')
+  .to('#s1 .cur',{autoAlpha:0,duration:.3},'+=.1');
+ S.s1={tl:A,reset:()=>{gsap.killTweensOf('#s1 .cur');gsap.set('#s1 .cur',{autoAlpha:0})}};
+ /* 2. capture (built from real data once the PC has been read) */
+ buildCapture([]);
+ /* 3. side by side (built from real data once the PC and the software have been read) */
+ buildCompare(null);
+ /* 4. verdict: built from the spec-checker's answer */
+ buildVerdict({phase:'idle'});
+}
+gsap.to('.caret',{autoAlpha:0,repeat:-1,yoyo:true,duration:.5,ease:'steps(1)'});
+
+/* play each scene when it scrolls into view, rewind when it leaves */
+function boot(){
+ const GT="Hi, I'm GPS. Ask me anything about the software.",g=say('b',GT);
+ g.style.minWidth=g.offsetWidth+'px';g.style.minHeight=g.offsetHeight+'px';g.textContent='';
+ build();scrollTo(0,bottomY());check();
+ /* entrance: sidebar slides in, composer rises, chat is revealed as it scrolls into view */
+ gsap.set('#chat',{opacity:1});
+ const mio=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){mio.unobserve(e.target);gsap.to(e.target,{autoAlpha:1,y:0,duration:.8,ease:'expo.out'})}}),{threshold:.2});
+ $$('.msg,.intro').forEach(m=>{gsap.set(m,{autoAlpha:0,y:36});mio.observe(m)});
+ gsap.fromTo(bar,{y:()=>innerHeight},{y:()=>slot(),duration:1,ease:'expo.out',delay:.3});
+ gsap.from('#side',{x:-110,autoAlpha:0,duration:1,ease:'expo.out'});
+ gsap.to(g,{text:GT,duration:2.4,delay:1.4,ease:'none'});
+ gsap.to('#cue svg',{y:6,repeat:-1,yoyo:true,duration:.8,ease:'sine.inOut'});
+ $('#again').onclick=()=>scrollTo({top:$('#s1').offsetTop,behavior:'smooth'});
+ $('#ask').onclick=()=>{scrollTo({top:bottomY(),behavior:'smooth'});setTimeout(()=>inp.focus(),800)};
+ /* scroll progress */
+ const pg=gsap.quickSetter('#prog','scaleX');
+ addEventListener('scroll',()=>pg(scrollY/((document.documentElement.scrollHeight-innerHeight)||1)),{passive:true});
+ /* side tab */
+ $$('.nb[data-go]').forEach(b=>b.onclick=()=>{closeSet();const id=b.dataset.go;scrollTo({top:id=='chat'?bottomY():$('#'+id).offsetTop,behavior:'smooth'})});
+ const setP=$('#set');let open=0;gsap.set(setP,{autoAlpha:0});
+ const closeSet=()=>{if(!open)return;open=0;gsap.to(setP,{autoAlpha:0,x:-16,scale:.96,duration:.3,ease:'power3.in'})};
+ $('#gear').onclick=e=>{e.stopPropagation();if(open)return closeSet();open=1;gsap.fromTo(setP,{autoAlpha:0,x:-24,scale:.94},{autoAlpha:1,x:0,scale:1,duration:.5,ease:'expo.out'})};
+ document.addEventListener('click',e=>{if(!setP.contains(e.target))closeSet()});
+ addEventListener('keydown',e=>{if(e.key=='Escape')closeSet()});
+ const seg=(id,fn)=>$$('#'+id+' button').forEach(b=>b.onclick=()=>{$$('#'+id+' button').forEach(x=>x.classList.toggle('on',x==b));fn(b.dataset.v)});
+ seg('thm',v=>{if(v=='auto')delete document.documentElement.dataset.theme;else document.documentElement.dataset.theme=v});
+ seg('spd',v=>gsap.globalTimeline.timeScale(+v));
+ $('#clr').onclick=()=>{fetch('/api/reset',{method:'POST'}).catch(()=>{});setSoftware(null);$$('.msg').forEach(m=>gsap.to(m,{x:m.classList.contains('u')?60:-60,autoAlpha:0,duration:.4,stagger:.04,onComplete:()=>m.remove()}))};
+ /* composer types example questions while idle */
+ const Q=['What does GPS do?','Will Blender run on my laptop?','How do you read my PC?','Is my data kept private?'],pt={n:0};let qi=0;
+ setInterval(()=>{if(docked||document.activeElement===inp||inp.value)return;const s=Q[qi++%Q.length];pt.n=0;
+  gsap.to(pt,{n:s.length,duration:s.length*.05,ease:'none',onUpdate:()=>{if(!docked)inp.placeholder='Ask GPS: '+s.slice(0,Math.round(pt.n))}})},4200);
+ const io=new IntersectionObserver(es=>es.forEach(e=>{const s=S[e.target.id];
+  const seen=e.intersectionRatio>=.3||e.intersectionRect.height>=innerHeight*.3;
+  if(seen&&!s.on){s.on=1;RM?s.tl.progress(1):s.tl.restart()}
+  else if(e.intersectionRatio===0&&s.on){s.on=0;s.tl.pause(0);s.reset&&s.reset()}}),{threshold:Array.from({length:41},(_,i)=>i/40)});
+ $$('.scene').forEach(el=>io.observe(el));
+}
+/* ---------- "user" pointer: follows the real mouse with the same glide + click press as the GPS pointer ---------- */
+if(!RM&&matchMedia('(hover:hover) and (pointer:fine)').matches){
+ const me=document.createElement('div');me.className='me';me.setAttribute('aria-hidden','true');
+ me.innerHTML='<div class="arrow"></div><span class="tag">user</span>';document.body.appendChild(me);
+ gsap.set(me,{autoAlpha:0,x:0,y:0,scale:1});
+ const sx=gsap.quickSetter(me,'x','px'),sy=gsap.quickSetter(me,'y','px');
+ let px=0,py=0,cx=0,cy=0,seen=false,shown=false,pressed=null;
+ document.documentElement.classList.add('fake-cursor');
+ addEventListener('pointermove',e=>{if(e.pointerType=='touch')return;px=e.clientX;py=e.clientY;
+  if(!seen){seen=true;cx=px;cy=py;sx(cx);sy(cy)}
+  if(!shown){shown=true;gsap.to(me,{autoAlpha:1,duration:.25})}},{passive:true});
+ document.documentElement.addEventListener('pointerleave',()=>{shown=false;gsap.to(me,{autoAlpha:0,duration:.2})});
+ gsap.ticker.add((t,dt)=>{if(!seen)return;const f=1-Math.exp(-dt/70);cx+=(px-cx)*f;cy+=(py-cy)*f;sx(cx);sy(cy)});
+ const PRESS='#take,.btn,#go,.nb,.seg button,.clr';
+ addEventListener('pointerdown',e=>{gsap.to(me,{scale:.78,duration:.08});
+  const t=e.target.closest&&e.target.closest(PRESS);if(t){pressed=t;gsap.to(t,{scale:.92,duration:.1})}});
+ addEventListener('pointerup',()=>{gsap.to(me,{scale:1,duration:.25,ease:'back.out(3)'});
+  if(pressed){gsap.to(pressed,{scale:1,duration:.35,ease:'back.out(4)'});pressed=null}});
+}
+
+Promise.race([document.fonts.ready,new Promise(r=>setTimeout(r,2500))]).then(()=>requestAnimationFrame(boot));
+</script></body></html>

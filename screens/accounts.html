@@ -1,0 +1,947 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>GPS — Account / Sign up &amp; Sign in</title>
+
+  <!-- Fonts (optional but recommended: the layout is tuned for Geist) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet" />
+
+  <!-- REQUIRED: GSAP core + TextPlugin (TextPlugin powers the typing effect) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/TextPlugin.min.js"></script>
+
+  <style>
+    :root {
+      --paper: #edf0f4;
+      --ink: #000;
+      --blue: #2b4bff;
+      --pink: #ff3d7f;
+      --muted: #68707c;
+      --tint: #f4f6f9;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      overflow: hidden;
+      background: #17191d;
+      color: var(--ink);
+      font-family: "Geist", Inter, Arial, sans-serif;
+    }
+
+    button { font: inherit; color: inherit; }
+
+    /* ---------- player shell ---------- */
+    #player {
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 22px;
+    }
+
+    /* width is capped by viewport height too, so the controls never get cut off */
+    #shell { width: min(100%, 1280px, calc((100vh - 120px) * 16 / 9)); }
+
+    .stage-wrap {
+      position: relative;
+      aspect-ratio: 16 / 9;
+      overflow: hidden;
+      background: transparent;
+      box-shadow: 0 30px 80px #0008;
+    }
+
+    .stage {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 1920px;
+      height: 1080px;
+      transform-origin: top left;
+      background: transparent;
+      overflow: hidden;
+    }
+
+    /* ---------- chapters & scenes ---------- */
+    .chapter {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      visibility: hidden;
+    }
+
+    .frame,
+    .timecode {
+      position: absolute;
+      top: 40px;
+      z-index: 20;
+      font: 16px/1 "Geist Mono", Consolas, monospace;
+    }
+    .frame    { left: 56px; }
+    .timecode { right: 56px; }
+
+    .scene { position: absolute; inset: 0; }
+
+    /* Centered scenes: centered by GSAP (xPercent/yPercent -50), see JS "boot" */
+    .scene.center {
+      inset: auto;
+      left: 50%;
+      top: 50%;
+      width: max-content;
+      text-align: center;
+    }
+
+    /* ---------- typography ---------- */
+    .mono,
+    .code { font-family: "Geist Mono", Consolas, monospace; letter-spacing: -.04em; }
+    .blue  { color: var(--blue); }
+    .pink  { color: var(--pink); }
+    .muted { color: var(--muted); }
+
+    .mask { overflow: hidden; display: inline-block; vertical-align: bottom; }
+    .mask > span { display: inline-block; }
+
+    .kicker {
+      font: 24px/1 "Geist Mono", Consolas, monospace;
+      color: var(--blue);
+      letter-spacing: -.06em;
+    }
+
+    .headline {
+      font-size: 120px;
+      line-height: .88;
+      font-weight: 600;
+      letter-spacing: -.085em;
+      white-space: nowrap;
+    }
+
+    /* letters are split into <span>s by JS; transforms need inline-block */
+    .letters span { display: inline-block; }
+
+    .section-title {
+      position: absolute;
+      left: 100px;
+      top: 125px;
+      font-size: 28px;
+      line-height: 1;
+      font-family: "Geist Mono", Consolas, monospace;
+      letter-spacing: -.06em;
+    }
+
+    /* ---------- cards & panels ---------- */
+
+    .card {
+      background: #fff;
+      border-radius: 30px;
+      box-shadow: 0 18px 36px #1a243316;
+      padding: 32px;
+    }
+
+    .flood {
+      position: absolute;
+      inset: 0;
+      background: var(--pink);
+      transform-origin: left;
+      z-index: 50;
+    }
+
+    /* ---------- chapter 4: account flow ---------- */
+    .form-card { position: absolute; left: 580px; top: 260px; width: 760px; padding: 42px; }
+    .form-card h2 { margin: 0 0 28px; font-size: 45px; letter-spacing: -.07em; }
+
+    .field {
+      position: relative;
+      display: flex;
+      align-items: center;
+      gap: .6em;
+      height: 62px;
+      margin: 12px 0;
+      padding: 0 16px;
+      border: 2px solid var(--ink);
+      border-radius: 11px;
+      font: 16px "Geist Mono", Consolas, monospace;
+      cursor: text;
+    }
+    .field:has(.eye) { padding-right: 44px; }
+    .field:focus-within { border-color: var(--blue); }
+    .fl { white-space: nowrap; }
+    .field input {
+      flex: 1;
+      min-width: 0;
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      border: 0;
+      outline: 0;
+      background: transparent;
+      color: var(--ink);
+      caret-color: var(--blue);
+      font: inherit;
+      pointer-events: auto;
+    }
+    .eye {
+      position: absolute;
+      right: 12px;
+      top: 14px;
+      width: 32px;
+      height: 32px;
+      display: grid;
+      place-items: center;
+      padding: 0;
+      border: 0;
+      border-radius: 8px;
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      pointer-events: auto;
+    }
+    .eye:hover, .eye[aria-pressed="true"] { color: var(--blue); }
+    .eye:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+    .eye .slash { display: none; }
+    .eye[aria-pressed="true"] .slash { display: inline; }
+
+    .cta {
+      width: 100%;
+      margin-top: 15px;
+      padding: 18px;
+      border: 0;
+      border-radius: 13px;
+      background: var(--blue);
+      color: #fff;
+      font: 18px "Geist Mono", Consolas, monospace;
+    }
+    .signup .cta,
+    .signin .cta,
+    .newpass .cta { pointer-events: auto; cursor: pointer; }
+
+    .form-card.verify { left: 600px; width: 720px; }
+
+    .digits { display: flex; gap: 12px; }
+    .digit {
+      width: 82px;
+      height: 82px;
+      display: block;
+      margin: 0;
+      padding: 0;
+      border: 0;
+      outline: 0;
+      background: var(--tint);
+      border-radius: 12px;
+      color: var(--ink);
+      text-align: center;
+      font-size: 35px;
+      font-family: "Geist Mono", Consolas, monospace;
+      pointer-events: auto;
+    }
+    .digit:focus { box-shadow: 0 0 0 2px var(--blue); }
+
+    .forgot {
+      margin-top: 17px;
+      width: fit-content;
+      color: var(--blue);
+      font: 15px "Geist Mono", Consolas, monospace;
+      cursor: pointer;
+      pointer-events: auto;
+    }
+    .forgot:focus-visible { outline: 2px solid var(--blue); outline-offset: 4px; }
+
+    .reset-strip {
+      position: absolute;
+      left: 570px;
+      top: 790px;
+      width: 780px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font: 18px "Geist Mono", Consolas, monospace;
+    }
+    .reset-line {
+      position: absolute;
+      top: 40px;
+      left: 60px;
+      right: 60px;
+      height: 3px;
+      background: var(--blue);
+      transform-origin: left;
+    }
+    /* strip labels = the sign up / sign in switch */
+    .reset-strip .sw { all: unset; cursor: pointer; pointer-events: auto; }
+    .reset-strip .sw:hover,
+    .reset-strip .sw.on { color: var(--blue); }
+    .reset-strip .sw:focus-visible { outline: 2px solid var(--blue); outline-offset: 4px; }
+
+    /* ---------- fake cursor + selection box ---------- */
+    /* the animated "user" pointer replaces the native one over the page */
+    .fake-cursor, .fake-cursor * { cursor: none !important; }
+    .cursor {
+      position: absolute;
+      z-index: 100;
+      left: 1030px;
+      top: 560px;
+      width: 36px;
+      height: 48px;
+      pointer-events: none;
+    }
+    .arrow {
+      width: 0;
+      height: 0;
+      border-left: 12px solid transparent;
+      border-right: 12px solid transparent;
+      border-bottom: 38px solid var(--ink);
+      transform: rotate(-38deg);
+      filter: drop-shadow(0 2px 0 white);
+    }
+    .cursor-tag {
+      position: absolute;
+      top: 35px;
+      left: 19px;
+      padding: 6px 9px;
+      border-radius: 8px;
+      color: #fff;
+      background: var(--pink);
+      font: 13px "Geist Mono", Consolas, monospace;
+    }
+
+    .selection {
+      position: absolute;
+      left: 0;
+      top: 0;
+      z-index: 90;
+      width: 160px;
+      height: 80px;
+      border: 3px solid var(--blue);
+      pointer-events: none;
+    }
+    .selection:before,
+    .selection:after {
+      content: "";
+      position: absolute;
+      width: 12px;
+      height: 12px;
+      background: var(--blue);
+      top: -7px;
+    }
+    .selection:before { left: -7px; }
+    .selection:after  { right: -7px; }
+
+    .handle-bottom:before,
+    .handle-bottom:after {
+      content: "";
+      position: absolute;
+      width: 12px;
+      height: 12px;
+      background: var(--blue);
+      bottom: -7px;
+    }
+    .handle-bottom:before { left: -7px; }
+    .handle-bottom:after  { right: -7px; }
+
+    .dimension {
+      position: absolute;
+      right: -2px;
+      top: -34px;
+      background: var(--blue);
+      color: #fff;
+      padding: 6px 8px;
+      white-space: nowrap;
+      font: 12px "Geist Mono", Consolas, monospace;
+    }
+
+    /* ---------- scrolling page ---------- */
+    body { overflow: visible; min-height: 0;
+      background-color: var(--paper);
+      background-image: radial-gradient(#c8ced7 1.5px, transparent 1.5px);
+      background-size: 22px 22px; }
+    .slide { position: relative; height: 100vh; display: grid; place-items: center;
+      background-color: var(--paper);
+      background-image: radial-gradient(#c8ced7 1.5px, transparent 1.5px);
+      background-size: 22px 22px;
+      }
+    .stage-wrap { box-shadow: none; }
+
+    /* ---------- scroll UX chrome ---------- */
+    @media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
+    #bar { position: fixed; top: 0; left: 0; height: 4px; width: 0; background: var(--blue); z-index: 200; }
+    #nav { position: fixed; right: 18px; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; gap: 16px; z-index: 200; }
+    #nav button { all: unset; cursor: pointer; display: flex; align-items: center; justify-content: flex-end; gap: 10px; font: 12px "Geist Mono", Consolas, monospace; }
+    #nav button i { width: 11px; height: 11px; border-radius: 50%; border: 2px solid var(--ink); transition: .2s; }
+    #nav button span { opacity: 0; transform: translateX(6px); transition: .2s; padding: 4px 9px; border-radius: 6px; background: #fff; box-shadow: 0 4px 14px #0002; }
+    #nav button:hover span, #nav button:focus-visible span, #nav button.on span { opacity: 1; transform: none; }
+    #nav button.on i { background: var(--blue); border-color: var(--blue); transform: scale(1.35); }
+    #nav button:focus-visible i { outline: 2px solid var(--blue); outline-offset: 3px; }
+    #hint { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 200; padding: 8px 16px; border-radius: 20px; background: var(--ink); color: #fff; font: 14px "Geist Mono", Consolas, monospace; animation: bob 1.4s ease-in-out infinite; transition: opacity .3s; }
+    #hint.hide { opacity: 0; pointer-events: none; }
+    @keyframes bob { 50% { transform: translate(-50%, 6px); } }
+    .cue { position: absolute; left: 50%; bottom: 28px; transform: translateX(-50%); z-index: 150; padding: 9px 18px; border-radius: 22px; background: var(--ink); color: #fff; white-space: nowrap; font: 14px "Geist Mono", Consolas, monospace; opacity: 0; pointer-events: none; transition: opacity .6s; }
+    .cue.on { opacity: .92; animation: bob 1.6s ease-in-out infinite; }
+    @media (prefers-reduced-motion: reduce) { .cue.on, #hint { animation: none; } }
+    .part { position: absolute; inset: 0; }
+    @media (max-width: 700px) { #nav button span { display: none; } }
+  </style>
+</head>
+
+<body>
+<div id="player">
+  <div id="shell">
+    <div id="stage-wrap">
+      <main id="stage">
+
+        <!-- ============ ACCOUNT : SIGN UP / VERIFY / SIGN IN ============ -->
+        <section class="chapter" id="ch4">
+          <div class="frame">gps-account-15s</div>
+          <div class="timecode">00:00 — 00:15</div>
+          <div class="flood" style="background:var(--blue)"></div>
+
+          <div class="scene start-hero center">
+            <div class="section-title" style="position:static;text-align:left">/* Get Started */</div>
+            <div class="kicker" style="margin-top:42px">// free · takes 30 seconds</div>
+            <div class="headline letters" style="margin-top:45px">Create your account.</div>
+          </div>
+
+          <div class="scene signup">
+            <div class="card form-card">
+              <h2>Create your account.</h2>
+              <label class="field"><span class="fl">Full name</span><input type="text" name="name" autocomplete="name" aria-label="Full name"></label>
+              <label class="field"><span class="fl">Email</span><input type="email" name="email" autocomplete="email" aria-label="Email"></label>
+              <label class="field"><span class="fl">Password</span><input type="password" name="new-password" autocomplete="new-password" aria-label="Password"><button type="button" class="eye" aria-label="Show password" aria-pressed="false"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3"/><path class="slash" d="M3 3l18 18"/></svg></button></label>
+              <button class="cta">Create account ↗</button>
+            </div>
+          </div>
+
+          <div class="scene verify">
+            <div class="card form-card verify">
+              <h2>Check your email</h2>
+              <p class="mono muted">// code sent to <span class="verify-mail">your email</span></p>
+              <div class="digits">
+                <input class="digit" type="text" inputmode="numeric" maxlength="1" aria-label="Digit 1" autocomplete="one-time-code"><input class="digit" type="text" inputmode="numeric" maxlength="1" aria-label="Digit 2"><input class="digit" type="text" inputmode="numeric" maxlength="1" aria-label="Digit 3">
+                <input class="digit" type="text" inputmode="numeric" maxlength="1" aria-label="Digit 4"><input class="digit" type="text" inputmode="numeric" maxlength="1" aria-label="Digit 5"><input class="digit" type="text" inputmode="numeric" maxlength="1" aria-label="Digit 6">
+              </div>
+              <p class="mono blue">✓ verified</p>
+            </div>
+          </div>
+
+          <div class="scene signin">
+            <div class="card form-card">
+              <h2>Welcome back.</h2>
+              <label class="field"><span class="fl">Email</span><input type="email" name="email" autocomplete="email" aria-label="Email"></label>
+              <label class="field"><span class="fl">Password</span><input type="password" name="password" autocomplete="current-password" aria-label="Password"><button type="button" class="eye" aria-label="Show password" aria-pressed="false"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3"/><path class="slash" d="M3 3l18 18"/></svg></button></label>
+              <div class="forgot" role="button" tabindex="0">Forgot password?</div>
+              <button class="cta">Sign in →</button>
+            </div>
+          </div>
+
+          <!-- forgot password: same "check your email" code box as the sign-up verify step -->
+          <div class="scene recover">
+            <div class="card form-card verify">
+              <h2>Check your email</h2>
+              <p class="mono muted">// code sent to <span class="recover-mail">your email</span></p>
+              <div class="digits">
+                <input class="digit" type="text" inputmode="numeric" maxlength="1" aria-label="Digit 1" autocomplete="one-time-code"><input class="digit" type="text" inputmode="numeric" maxlength="1" aria-label="Digit 2"><input class="digit" type="text" inputmode="numeric" maxlength="1" aria-label="Digit 3"><input class="digit" type="text" inputmode="numeric" maxlength="1" aria-label="Digit 4"><input class="digit" type="text" inputmode="numeric" maxlength="1" aria-label="Digit 5"><input class="digit" type="text" inputmode="numeric" maxlength="1" aria-label="Digit 6">
+              </div>
+              <p class="mono blue">✓ verified</p>
+            </div>
+          </div>
+
+          <!-- forgot password, step 2: choose a new password once the code is verified -->
+          <div class="scene newpass">
+            <div class="card form-card">
+              <h2>New password.</h2>
+              <label class="field"><span class="fl">New password</span><input type="password" name="new-password" autocomplete="new-password" aria-label="New password"><button type="button" class="eye" aria-label="Show password" aria-pressed="false"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3"/><path class="slash" d="M3 3l18 18"/></svg></button></label>
+              <button class="cta">Save password ↗</button>
+            </div>
+          </div>
+
+          <!-- sign up / sign in switch (shared by both forms) -->
+          <div class="reset-strip">
+            <i class="reset-line"></i>
+            <button type="button" class="sw" data-view="up">sign up</button>
+            <button type="button" class="sw" data-view="in">sign in</button>
+            <em class="blue">// signing up</em>
+          </div>
+        </section>
+
+        <!-- fake editor overlay -->
+        <div class="selection"><div class="dimension">0 × 0</div><i class="handle-bottom"></i></div>
+        <div class="cursor"><div class="arrow"></div><div class="cursor-tag">GPS</div></div>
+      </main>
+    </div>
+  </div>
+</div>
+
+<script>
+  /* ------------------------------------------------------------------
+     Setup
+  ------------------------------------------------------------------ */
+  if (!window.gsap) {
+    throw new Error('GSAP failed to load. Check your internet connection or the <script> URLs.');
+  }
+  if (window.TextPlugin) {
+    gsap.registerPlugin(TextPlugin);
+  } else {
+    console.error('TextPlugin failed to load - typing effects will not work.');
+  }
+
+  const $  = (s, root = document) => root.querySelector(s);
+  const $$ = (s, root = document) => [...root.querySelectorAll(s)];
+
+  const BLUE = '#2b4bff';
+  const PINK = '#ff3d7f';
+
+  let selection, dimension, cursor, CUR;     /* set per chapter in prepare() */
+
+  /* scale every 1920x1080 stage to fit the screen */
+  function fit() {
+    const k = Math.min(innerWidth / 1920, innerHeight / 1080);
+    $$('.stage-wrap').forEach(w => {
+      w.style.width = 1920 * k + 'px';
+      w.style.height = 1080 * k + 'px';
+      $('.stage', w).style.transform = `scale(${k})`;
+    });
+  }
+
+  /* ------------------------------------------------------------------
+     Helpers
+  ------------------------------------------------------------------ */
+
+  /* Position/size of an element in stage coordinates (1920x1080 space).
+     Uses layout offsets, so it ignores animation transforms and gives the
+     element's resting position. Call it BEFORE adding a typing tween,
+     because the typing tween empties the text at build time. */
+  function stageRect(el) {
+    let x = 0, y = 0, node = el;
+    while (node && !node.classList.contains('stage')) {
+      x += node.offsetLeft;
+      y += node.offsetTop;
+      if (node.classList.contains('center')) {   // centered via xPercent/yPercent -50
+        x -= node.offsetWidth / 2;
+        y -= node.offsetHeight / 2;
+      }
+      const parent = node.offsetParent;
+      if (parent && !parent.classList.contains('stage')) { x += parent.clientLeft; y += parent.clientTop; }
+      node = parent;
+    }
+    return { x, y, w: el.offsetWidth, h: el.offsetHeight };
+  }
+
+  /* make sure a chapter timeline is exactly 15 s long */
+  function pad(tl) {
+    return tl.set({}, {}, 15);
+  }
+
+  /* Figma-style selection box that hugs a rect (from stageRect) */
+  function setSelection(rect, tl, time, duration = .45) {
+    const x = rect.x - 10, y = rect.y - 10, w = rect.w + 20, h = rect.h + 20;
+    tl.set(dimension, { textContent: `${Math.round(w)} × ${Math.round(h)}` }, time)
+      .to(selection, { autoAlpha: 1, duration: .15 }, time)
+      .to(selection, { x, y, width: w, height: h, duration, ease: 'expo.out' }, time)
+      .to(selection, { autoAlpha: 0, duration: .2 }, time + .8);
+  }
+
+  function cursorTo(tl, x, y, time, d = .45) {
+    tl.to(cursor, { x: x - 1030, y: y - 560, duration: d, ease: 'expo.out' }, time);
+  }
+
+  function cursorToEl(tl, el, time, d = .45) {
+    const r = stageRect(el);
+    cursorTo(tl, r.x + r.w / 2, r.y + r.h / 2, time, d);
+  }
+
+  function click(tl, target, time) {
+    tl.to(target, { scale: .92, duration: .1 }, time)
+      .to(target, { scale: 1, duration: .35, ease: 'back.out(4)' }, time + .1)
+      .to(cursor, { scale: .78, duration: .08 }, time)
+      .to(cursor, { scale: 1, duration: .25, ease: 'back.out(3)' }, time + .08);
+  }
+
+  /* split an element's text into one <span> per character */
+  function splitLetters(el) {
+    el.innerHTML = [...el.textContent]
+      .map(c => `<span>${c === ' ' ? '&nbsp;' : c}</span>`)
+      .join('');
+    return $$('span', el);
+  }
+
+  /* start state for a chapter: everything hidden */
+  function prepare(id) {
+    const q = CUR;      /* the chapter clone currently being built */
+    gsap.set(q, { autoAlpha: 0 });
+    gsap.set($$('.scene', q), { autoAlpha: 0 });
+    selection = $('.selection', q.parentNode);
+    dimension = $('.dimension', q.parentNode);
+    cursor    = $('.cursor', q.parentNode);
+    gsap.set([selection, cursor], { autoAlpha: 0 });
+    /* wipe panels must start collapsed, otherwise a part parked at time 0 shows a full-screen flood */
+    gsap.set($$('.flood', q), { scaleX: 0, transformOrigin: 'left' });
+    return q;
+  }
+
+  /* ------------------------------------------------------------------
+     ACCOUNT  (hero, sign up, verify code, sign in + password reset)
+  ------------------------------------------------------------------ */
+  function buildAccount() {
+    const q  = prepare('#ch4');
+    const tl = gsap.timeline();
+    const flood = $('.flood', q);
+    const hero  = $('.start-hero', q);
+    const su    = $('.signup', q);
+    const v     = $('.verify', q);
+    const si    = $('.signin', q);
+    const strip = $('.reset-strip', q);
+    const rc    = $('.recover', q);
+    const np    = $('.newpass', q);
+
+    /* blue wipe */
+    tl.set(flood, { scaleX: 0, transformOrigin: 'left' })
+      .to(flood, { scaleX: 1, duration: .3 }, 0)
+      .set(hero, { autoAlpha: 1 }, .3)
+      .set(flood, { transformOrigin: 'right' }, .3)
+      .to(flood, { scaleX: 0, duration: .3 }, .3)
+      .from($('.section-title', hero), { y: 20, autoAlpha: 0, duration: .25 }, .65)
+      .from($('.kicker', hero), { y: 18, autoAlpha: 0, duration: .25 }, .8);
+
+    const letters = splitLetters($('.letters', hero));
+    tl.from(letters, { y: 130, autoAlpha: 0, stagger: .045, duration: .4, ease: 'back.out(2)' }, 1)
+      .to(hero, { y: -130, autoAlpha: 0, duration: .35 }, 2.65);
+
+    /* sign-up form */
+    tl.set(su, { autoAlpha: 1 }, 3)
+      .from($('.form-card', su), { y: 90, autoAlpha: 0, duration: .5, ease: 'back.out(1.6)' }, 3.05);
+    cursorTo(tl, 830, 430, 3.45);
+    cursorToEl(tl, $('.cta', su), 5.1);
+    click(tl, $('.cta', su), 5.6);
+
+    /* sign up / sign in switch: same entrance as the old reset strip, now shown with the first form */
+    tl.from(strip, { y: 35, autoAlpha: 0, duration: .3 }, 3.05)
+      .from($('.reset-line', strip), { scaleX: 0, duration: .55 }, 3.15);
+
+    /* verify code */
+    tl.to(su, { x: -270, autoAlpha: .42, duration: .35 }, 6.45)
+      .set(v, { autoAlpha: 1 }, 6.5)
+      .from($('.form-card', v), { x: 300, autoAlpha: 0, duration: .45, ease: 'expo.out' }, 6.5)
+      .from($$('.digit', v), { scale: 0, stagger: .11, duration: .3, ease: 'back.out(4)' }, 7.05)
+      .from($('.blue', v), { autoAlpha: 0, duration: .25 }, 8)
+      .to(v, { x: -200, autoAlpha: 0, duration: .35 }, 8.7)
+      .to(su, { autoAlpha: 0, duration: .35 }, 8.7);
+
+    /* sign-in + password reset */
+    tl.set(si, { autoAlpha: 1 }, 8.85)
+      .from($('.form-card', si), { x: 300, autoAlpha: 0, duration: .45, ease: 'expo.out' }, 8.85);
+    const fr = stageRect($('.forgot', si));
+    cursorTo(tl, fr.x + 70, fr.y + fr.h / 2, 9.85);
+    click(tl, $('.forgot', si), 10.35);   /* was 10: now lands just after the cursor arrives, so the demo can wait for the real click */
+    click(tl, $('.cta', si), 11.3);
+
+    /* forgot password: "check your email" code box, same entrance as the sign-up verify box */
+    tl.to(si, { x: -200, autoAlpha: 0, duration: .35 }, 12)
+      .set(rc, { autoAlpha: 1 }, 12.05)
+      .from($('.form-card', rc), { x: 300, autoAlpha: 0, duration: .45, ease: 'expo.out' }, 12.05)
+      .from($$('.digit', rc), { scale: 0, stagger: .11, duration: .3, ease: 'back.out(4)' }, 12.6)
+      .from($('.blue', rc), { autoAlpha: 0, duration: .25 }, 13.55);
+
+    /* new-password form, after the code is verified */
+    tl.to(rc, { x: -200, autoAlpha: 0, duration: .35 }, 14.1)
+      .set(np, { autoAlpha: 1 }, 14.15)
+      .from($('.form-card', np), { x: 300, autoAlpha: 0, duration: .45, ease: 'expo.out' }, 14.15);
+
+    return pad(tl);
+  }
+
+  /* ------------------------------------------------------------------
+     Boot: wait for fonts, build the 60 s master timeline, wire up controls
+  ------------------------------------------------------------------ */
+  function fontsReady() {
+    const loaded = Promise.all([
+      document.fonts.load('600 100px "Geist"'),
+      document.fonts.load('400 20px "Geist Mono"'),
+      document.fonts.load('500 20px "Geist Mono"')
+    ]).then(() => document.fonts.ready);
+    const timeout = new Promise(resolve => setTimeout(resolve, 2500));   // never hang if fonts are blocked
+    return Promise.race([loaded, timeout]);
+  }
+
+  /* ------------------------------------------------------------------
+     Views: only one form is on screen at a time.
+     { corner label, scenes kept, play from, play to }
+     'up' = hero -> sign up (waits for "Create account") -> verify email (waits for the 6-digit code)
+     'in' = sign in (waits for "Forgot password?") -> check your email (waits for the 6-digit code)
+  ------------------------------------------------------------------ */
+  const VIEWS = {
+    up: { frame: '01 Sign up · Create account & verify email', count: '01 / 02', status: '// signing up',
+          keep: '.start-hero, .signup, .verify', intro: 0, from: 3.01, to: 5.5,
+          submit: [5.5, 7.95], verify: [7.95, 8.65] },
+    in: { frame: '02 Sign in · Welcome back & password reset', count: '02 / 02', status: '// signing in',
+          keep: '.signin, .recover, .newpass', intro: 8.86, from: 8.86, to: 10.3,
+          bounce: [10.3, 10.85], forgot: [12, 13.5], verify: [13.5, 14.65], press: [11.25, 11.8] }
+  };
+
+  fontsReady().then(() => {
+    const chapter = $('.chapter'), tpl = [$('.selection'), $('.cursor')];
+    const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    /* 1. a single slide: one chapter copy + cursor + selection */
+    const site = document.createElement('main');
+    site.id = 'site';
+    const slide = document.createElement('section');
+    slide.className = 'slide';
+    slide.setAttribute('aria-label', 'Account: sign up & sign in');
+    slide.innerHTML = '<div class="stage-wrap"><div class="stage"></div></div>';
+    const part = document.createElement('div'), ch = chapter.cloneNode(true);
+    part.className = 'part';
+    ch.removeAttribute('id');
+    part.appendChild(ch);
+    tpl.forEach(t => part.appendChild(t.cloneNode(true)));
+    $('.stage', slide).appendChild(part);
+    site.appendChild(slide);
+    $('#player').replaceWith(site);
+    addEventListener('resize', fit);
+    fit();
+    gsap.from(site, { autoAlpha: 0, duration: .6 });
+
+    /* 2. build the timeline once (all scenes still laid out), warm it up end-to-end, park on frame 0 */
+    CUR = ch;
+    gsap.set($$('.scene.center', ch), { xPercent: -50, yPercent: -50 });
+    const tl = buildAccount();
+    tl.pause(tl.duration()).pause(0);
+    gsap.set(ch, { autoAlpha: 1 });
+    const cur = $('.cursor', part), frame = $('.frame', ch), timecode = $('.timecode', ch);
+    const status = $('.reset-strip em', ch), sw = $$('.sw', ch);
+
+    /* 3. one form at a time: show a view, play its part of the timeline */
+    let view = null, tw = null, introDone = false, step = 'form';
+    const upDigits = $$('.scene.verify input.digit', ch), rcDigits = $$('.scene.recover input.digit', ch);
+    const CODES = { up: upDigits, in: rcDigits };
+    const verifyMail = $('.verify-mail', ch), signupEmail = $('.signup input[type=email]', ch);
+    const recoverMail = $('.recover-mail', ch), signinEmail = $('.signin input[type=email]', ch);
+    const newPw = $('.newpass input', ch);
+
+    function skin(name) {
+      const v = VIEWS[name];
+      $$('.scene', ch).forEach(sc => { sc.style.display = sc.matches(v.keep) ? '' : 'none'; });
+      frame.textContent = v.frame;
+      timecode.textContent = v.count;
+      status.textContent = v.status;
+      sw.forEach(b => {
+        const on = b.dataset.view === name;
+        b.classList.toggle('on', on);
+        b.setAttribute('aria-pressed', on);
+      });
+    }
+
+    /* play the timeline between two times, then call done() */
+    function run(from, to, done) {
+      if (tw) tw.kill();
+      tw = null;
+      if (still) { tl.pause(to); if (done) done(); return; }
+      tl.pause(from);
+      gsap.set(cur, { autoAlpha: 1 });
+      tw = tl.tweenFromTo(from, to, { ease: 'none', onComplete: () => { tw = null; if (done) done(); } });
+    }
+
+    function show(name) {
+      const v = VIEWS[name];
+      view = name;
+      step = 'form';
+      skin(name);
+      CODES[name].forEach(d => { d.value = ''; });     /* a fresh visit starts with a blank code */
+      const from = introDone ? v.from : v.intro;      /* hero + colour wipe only on the very first visit */
+      introDone = true;
+      run(from, v.to);
+    }
+
+    /* sign up: the "Check your email" box only appears after Create account is clicked */
+    /* backend calls (server.py): email the OTP, then check the six digits */
+    async function api(path, body) {
+      let r;
+      try {
+        r = await fetch('/api/' + path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      } catch (e) { throw new Error('server not reachable'); }
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error((data.error || 'request failed').toLowerCase());
+    }
+
+    /* validates the email field, asks the server to mail the code; returns the email, or null on failure */
+    async function sendCode(emailInput, extra = {}) {
+      const email = emailInput.value.trim();
+      if (!email || !emailInput.checkValidity()) { emailInput.focus(); emailInput.reportValidity(); return null; }
+      status.textContent = '// sending code…';
+      try { await api('send-otp', { email, ...extra }); }
+      catch (e) { status.textContent = '// ' + e.message; return null; }
+      status.textContent = VIEWS[view].status;
+      return email;
+    }
+
+    async function submit() {
+      if (view !== 'up' || step !== 'form') return;
+      const v0 = view;
+      step = 'sending';
+      const nameInput = $('.signup input[name=name]', ch), pwInput = $('.signup input[name=new-password]', ch);
+      const name = nameInput.value.trim();
+      if (!name) { step = 'form'; nameInput.focus(); status.textContent = '// enter your name'; return; }
+      if (!pwInput.value) { step = 'form'; pwInput.focus(); status.textContent = '// enter a password'; return; }
+      const email = await sendCode(signupEmail, { name, password: pwInput.value });
+      if (view !== v0) return;
+      if (!email) { step = 'form'; return; }
+      step = 'code';
+      verifyMail.textContent = email;
+      run(...VIEWS.up.submit, () => { upDigits[0].focus(); checkCode(); });
+    }
+
+    /* sign in: "Forgot password?" opens the same "Check your email" code box */
+    async function forgot() {
+      if (view !== 'in' || step !== 'form') return;
+      const v0 = view;
+      step = 'sending';
+      const email = await sendCode(signinEmail, { reset: true });
+      if (view !== v0) return;
+      if (!email) { step = 'form'; return; }
+      step = 'code';
+      recoverMail.textContent = email;
+      const v = VIEWS.in;
+      run(...v.bounce, () => run(...v.forgot, () => { rcDigits[0].focus(); checkCode(); }));
+    }
+
+    /* forgot password, step 2: save the new password (replaces the old one), then back to sign in */
+    async function savePassword() {
+      if (view !== 'in' || step !== 'reset') return;
+      const pw = newPw.value;
+      if (!pw) { newPw.focus(); status.textContent = '// enter a new password'; return; }
+      step = 'saving';
+      try { await api('reset-password', { email: signinEmail.value.trim(), password: pw }); }
+      catch (e) { step = 'reset'; status.textContent = '// ' + e.message; return; }
+      newPw.value = '';
+      show('in');
+      status.textContent = '// password updated, sign in';
+    }
+
+    /* after a verified sign-up or a successful sign-in: leave for the app (served at /main, only to a signed-in session) */
+    function goMain() { setTimeout(() => location.replace('/main'), 600); }
+
+    /* sign in: the server checks email + password, then the original "Sign in" button press plays and the app opens */
+    async function press() {
+      if (view !== 'in' || step !== 'form') return;
+      const pwInput = $('.signin input[name=password]', ch);
+      if (!signinEmail.value.trim() || !signinEmail.checkValidity()) { signinEmail.focus(); signinEmail.reportValidity(); return; }
+      if (!pwInput.value) { pwInput.focus(); status.textContent = '// enter your password'; return; }
+      step = 'signing';
+      status.textContent = '// signing in…';
+      try { await api('sign-in', { email: signinEmail.value.trim(), password: pwInput.value }); }
+      catch (e) { step = 'form'; status.textContent = '// ' + e.message; return; }
+      status.textContent = '// welcome back';
+      if (view === 'in') run(...VIEWS.in.press, goMain); else goMain();
+    }
+
+    /* both code boxes: "✓ verified" shows once all six digits are typed AND the server accepts them */
+    async function checkCode() {
+      if (step !== 'code' || tw || !CODES[view].every(d => d.value)) return;
+      const v0 = view, digits = CODES[v0];
+      step = 'verifying';
+      const email = (v0 === 'up' ? signupEmail : signinEmail).value.trim();
+      try { await api('verify-otp', { email, code: digits.map(d => d.value).join('') }); }
+      catch (e) {
+        if (view !== v0) return;
+        step = 'code';
+        status.textContent = '// ' + e.message;
+        digits.forEach(d => { d.value = ''; });
+        digits[0].focus();
+        return;
+      }
+      if (view !== v0) return;
+      step = v0 === 'in' ? 'reset' : 'done';
+      status.textContent = VIEWS[v0].status;
+      run(...VIEWS[v0].verify, v0 === 'in' ? () => newPw.focus() : goMain);
+    }
+
+    sw.forEach(b => b.addEventListener('click', () => { if (b.dataset.view !== view) show(b.dataset.view); }));
+    $('.signup .cta', ch).addEventListener('click', submit);
+    $$('.signup input', ch).forEach(i => i.addEventListener('keydown', e => { if (e.key === 'Enter') submit(); }));
+    const forgotLink = $('.forgot', ch);
+    forgotLink.addEventListener('click', forgot);
+    forgotLink.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); forgot(); } });
+    $('.signin .cta', ch).addEventListener('click', press);
+    $('.newpass .cta', ch).addEventListener('click', savePassword);
+    newPw.addEventListener('keydown', e => { if (e.key === 'Enter') savePassword(); });
+
+    /* eye buttons: show / hide the typed password (keeps focus in the field) */
+    $$('.eye', ch).forEach(b => {
+      const input = $('input', b.parentNode);
+      b.addEventListener('mousedown', e => e.preventDefault());
+      b.addEventListener('click', () => {
+        const reveal = input.type === 'password';
+        input.type = reveal ? 'text' : 'password';
+        b.setAttribute('aria-pressed', reveal);
+        b.setAttribute('aria-label', reveal ? 'Hide password' : 'Show password');
+      });
+    });
+    $$('.signin input', ch).forEach(i => i.addEventListener('keydown', e => { if (e.key === 'Enter') press(); }));
+
+    /* code boxes (sign-up verify + forgot password): one digit each, auto-advance, backspace goes back, paste fills the row */
+    [upDigits, rcDigits].forEach(digits => digits.forEach((d, i) => {
+      d.addEventListener('focus', () => d.select());
+      d.addEventListener('input', () => {
+        d.value = d.value.replace(/\D/g, '').slice(-1);
+        if (d.value && digits[i + 1]) digits[i + 1].focus();
+        checkCode();
+      });
+      d.addEventListener('keydown', e => {
+        if (e.key === 'Backspace' && !d.value && digits[i - 1]) digits[i - 1].focus();
+      });
+      d.addEventListener('paste', e => {
+        const t = (e.clipboardData.getData('text') || '').replace(/\D/g, '');
+        if (!t) return;
+        e.preventDefault();
+        digits.slice(i).forEach((x, k) => { if (t[k]) x.value = t[k]; });
+        digits[Math.min(i + t.length, digits.length - 1)].focus();
+        checkCode();
+      });
+    }));
+
+    /* 4. a second pointer, tagged "user", follows the real mouse. The GPS pointer above keeps
+          playing the guided demo; this one is the person's own, with the same glide and click press. */
+    if (!still) {
+      const stageEl = $('.stage', slide);
+      const me = cur.cloneNode(true);                    /* same arrow + tag design as the guide pointer */
+      $('.cursor-tag', me).textContent = 'user';
+      $('.cursor-tag', me).style.background = BLUE;      /* blue tag so the two pointers read apart */
+      me.style.zIndex = 101;
+      part.appendChild(me);
+      gsap.set(me, { autoAlpha: 0, x: 0, y: 0, scale: 1 });
+      const pos = { cx: null, cy: null };
+      site.classList.add('fake-cursor');
+
+      addEventListener('pointermove', e => { pos.cx = e.clientX; pos.cy = e.clientY; });
+      document.documentElement.addEventListener('pointerleave', () => gsap.to(me, { autoAlpha: 0, duration: .2 }));
+      document.documentElement.addEventListener('pointerenter', () => { if (pos.cx !== null) gsap.to(me, { autoAlpha: 1, duration: .2 }); });
+
+      gsap.ticker.add((time, dt) => {
+        if (pos.cx === null) return;                     /* mouse not seen yet */
+        const r = stageEl.getBoundingClientRect(), k = r.width / 1920;
+        const tx = (pos.cx - r.left) / k - 1030, ty = (pos.cy - r.top) / k - 560;
+        const first = gsap.getProperty(me, 'opacity') === 0 && !me._seen;
+        const x = first ? tx : gsap.getProperty(me, 'x'), y = first ? ty : gsap.getProperty(me, 'y');
+        const f = 1 - Math.exp(-dt / 70);                /* frame-rate independent ease */
+        gsap.set(me, { x: x + (tx - x) * f, y: y + (ty - y) * f });
+        if (!me._seen) { me._seen = true; gsap.to(me, { autoAlpha: 1, duration: .25 }); }
+      });
+
+      addEventListener('pointerdown', e => {
+        gsap.to(me, { scale: .78, duration: .08 });
+        const t = !tw && e.target.closest && e.target.closest('.cta, .forgot');
+        if (t) gsap.to(t, { scale: .92, duration: .1 });
+      });
+      addEventListener('pointerup', () => {
+        gsap.to(me, { scale: 1, duration: .25, ease: 'back.out(3)' });
+        if (!tw) gsap.to($$('.cta, .forgot', ch), { scale: 1, duration: .35, ease: 'back.out(4)' });
+      });
+    }
+
+    skin('up');
+    if (still) show('up'); else gsap.delayedCall(.35, () => show('up'));
+  });
+</script>
+</body>
+</html>
